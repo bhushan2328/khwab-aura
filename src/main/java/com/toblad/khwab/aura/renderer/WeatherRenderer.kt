@@ -1,22 +1,27 @@
 package com.toblad.khwab.aura.renderer
 
-import com.toblad.khwab.aura.model.WeatherEffectStyle
+import com.toblad.khwab.aura.scene.WeatherNode
 
 /**
  * Responsible for rendering atmospheric
  * weather effects.
  *
- * Future versions will animate rain, snow,
- * fog, lightning, wind and other particle
- * systems.
+ * Receives a WeatherNode from the SceneGraph
+ * and returns it unchanged for now.
+ *
+ * Future versions will calculate particle
+ * systems, rain, snow, fog, lightning,
+ * wind and animation data.
  */
 class WeatherRenderer {
 
     /**
-     * Returns the WeatherEffectStyle that
-     * should currently be rendered.
+     * Processes the supplied WeatherNode.
      */
-    fun render(style: WeatherEffectStyle): WeatherEffectStyle {
-        return style
+    fun render(
+        node: WeatherNode
+    ): WeatherNode {
+
+        return node
     }
 }

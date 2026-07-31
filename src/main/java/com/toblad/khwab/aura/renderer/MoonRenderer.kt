@@ -1,20 +1,26 @@
 package com.toblad.khwab.aura.renderer
 
-import com.toblad.khwab.aura.model.MoonStyle
+import com.toblad.khwab.aura.scene.MoonNode
 
 /**
- * Responsible for rendering the moon layer.
+ * Responsible for rendering the moon.
  *
- * Future versions will animate moon phases,
- * position, glow and eclipse effects.
+ * Receives a MoonNode from the SceneGraph
+ * and returns it unchanged for now.
+ *
+ * Future versions will calculate moon
+ * phases, glow, orbital position,
+ * eclipses and animation.
  */
 class MoonRenderer {
 
     /**
-     * Returns the MoonStyle that should
-     * currently be rendered.
+     * Processes the supplied MoonNode.
      */
-    fun render(style: MoonStyle): MoonStyle {
-        return style
+    fun render(
+        node: MoonNode
+    ): MoonNode {
+
+        return node
     }
 }

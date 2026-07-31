@@ -1,12 +1,18 @@
 package com.toblad.khwab.aura.renderer
 
-import com.toblad.khwab.aura.model.AuraTheme
+import com.toblad.khwab.aura.scene.CloudNode
+import com.toblad.khwab.aura.scene.LightNode
+import com.toblad.khwab.aura.scene.MoonNode
+import com.toblad.khwab.aura.scene.SceneGraph
+import com.toblad.khwab.aura.scene.SkyNode
+import com.toblad.khwab.aura.scene.SunNode
+import com.toblad.khwab.aura.scene.WeatherNode
 
 /**
  * Central rendering coordinator.
  *
- * Delegates each visual layer to its
- * dedicated renderer.
+ * Receives a SceneGraph and delegates each
+ * SceneNode to its dedicated renderer.
  */
 class AuraRenderer(
 
@@ -20,22 +26,36 @@ class AuraRenderer(
 ) {
 
     /**
-     * Renders the complete Aura scene.
+     * Renders the complete SceneGraph.
      */
-    fun render(theme: AuraTheme) {
+    fun render(
+        scene: SceneGraph
+    ) {
 
-        skyRenderer.render(theme.profile.sky)
+        scene.firstNode<SkyNode>()?.let {
+            skyRenderer.render(it)
+        }
 
-        cloudRenderer.render(theme.profile.clouds)
+        scene.nodesOfType<CloudNode>().forEach {
+            cloudRenderer.render(it)
+        }
 
-        sunRenderer.render(theme.profile.sun)
+        scene.firstNode<SunNode>()?.let {
+            sunRenderer.render(it)
+        }
 
-        moonRenderer.render(theme.profile.moon)
+        scene.firstNode<MoonNode>()?.let {
+            moonRenderer.render(it)
+        }
 
-        weatherRenderer.render(theme.profile.weatherEffect)
+        scene.nodesOfType<WeatherNode>().forEach {
+            weatherRenderer.render(it)
+        }
 
-        lightRenderer.render(theme.profile.ambientLight)
+        scene.firstNode<LightNode>()?.let {
+            lightRenderer.render(it)
+        }
 
-        animationController.apply(theme.profile.animation)
+        // AnimationController remains unchanged for now.
     }
 }

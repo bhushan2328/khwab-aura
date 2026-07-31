@@ -1,22 +1,26 @@
 package com.toblad.khwab.aura.renderer
 
-import com.toblad.khwab.aura.model.SkyStyle
+import com.toblad.khwab.aura.scene.SkyNode
 
 /**
  * Responsible for rendering the sky layer.
  *
- * At this stage it simply returns the
- * selected SkyStyle. In future milestones,
- * it will render gradients, stars, and
- * atmospheric effects.
+ * Receives a SkyNode from the SceneGraph
+ * and returns it unchanged for now.
+ *
+ * Future versions will generate gradients,
+ * atmospheric scattering, stars and other
+ * sky rendering data.
  */
 class SkyRenderer {
 
     /**
-     * Returns the SkyStyle that should
-     * currently be displayed.
+     * Processes the supplied SkyNode.
      */
-    fun render(style: SkyStyle): SkyStyle {
-        return style
+    fun render(
+        node: SkyNode
+    ): SkyNode {
+
+        return node
     }
 }

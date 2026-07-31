@@ -1,20 +1,25 @@
 package com.toblad.khwab.aura.renderer
 
-import com.toblad.khwab.aura.model.CloudStyle
+import com.toblad.khwab.aura.scene.CloudNode
 
 /**
- * Responsible for rendering the cloud layer.
+ * Responsible for rendering cloud layers.
  *
- * Future versions will animate cloud movement,
- * density and transitions.
+ * Receives a CloudNode from the SceneGraph
+ * and returns it unchanged for now.
+ *
+ * Future versions will calculate cloud
+ * movement, density, scale and animation.
  */
 class CloudRenderer {
 
     /**
-     * Returns the CloudStyle that should
-     * currently be rendered.
+     * Processes the supplied CloudNode.
      */
-    fun render(style: CloudStyle): CloudStyle {
-        return style
+    fun render(
+        node: CloudNode
+    ): CloudNode {
+
+        return node
     }
 }
