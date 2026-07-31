@@ -37,3 +37,4 @@ enum class AuraState {
      */
     ERROR
 }
+

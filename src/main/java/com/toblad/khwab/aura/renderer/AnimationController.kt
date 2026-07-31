@@ -1,6 +1,6 @@
 package com.toblad.khwab.aura.renderer
 
-import com.toblad.khwab.aura.model.AnimationStyle
+import com.toblad.khwab.aura.scene.SceneGraph
 
 /**
  * Coordinates scene animations.
@@ -12,13 +12,17 @@ import com.toblad.khwab.aura.model.AnimationStyle
 class AnimationController {
 
     /**
-     * Applies the selected animation style.
+     * Applies animations to the current scene.
      *
-     * This is currently a placeholder. Future
-     * implementations will start or update
-     * Compose animations based on the style.
+     * Currently returns the scene unchanged.
+     * Future versions will animate nodes within
+     * the SceneGraph.
      */
-    fun apply(style: AnimationStyle): AnimationStyle {
-        return style
+    fun apply(
+        context: RenderContext
+    ): SceneGraph {
+
+        return context.scene
     }
 }
+

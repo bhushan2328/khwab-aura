@@ -1,43 +1,47 @@
 package com.toblad.khwab.aura.engine
 
-import com.toblad.khwab.aura.model.TimePhase
-import java.time.LocalTime
+import com.toblad.khwab.aura.world.TimeState
 
 /**
- * Determines the current phase of the day.
+ * Advances the simulated world time.
  *
- * Milestone 2 still uses the local device time.
- * Future versions will integrate with SunEngine
- * for true sunrise and sunset calculations.
+ * The engine operates on a 24-hour clock and
+ * will later support configurable time scaling.
  */
-class TimeEngine {
+class TimeEngine(
 
     /**
-     * Returns the current phase using the
-     * device's local time.
+     * Number of simulated seconds advanced
+     * per real second.
      */
-    fun getCurrentPhase(): TimePhase {
-        return getPhase(LocalTime.now())
-    }
+    private val timeScale: Float = 60f
+) {
 
     /**
-     * Returns the phase for the supplied time.
-     * Useful for testing and future integrations.
+     * Advances the supplied world time by one frame.
      */
-    fun getPhase(time: LocalTime): TimePhase {
+    fun update(
+        time: TimeState,
+        clock: FrameClock
+    ): TimeState {
 
-        val hour = time.hour
+        var totalSeconds =
+            time.hour * 3600 +
+            time.minute * 60 +
+            time.second
 
-        return when (hour) {
-            in 0..3 -> TimePhase.MIDNIGHT
-            in 4..5 -> TimePhase.PRE_DAWN
-            in 6..7 -> TimePhase.SUNRISE
-            in 8..11 -> TimePhase.MORNING
-            12 -> TimePhase.NOON
-            in 13..16 -> TimePhase.AFTERNOON
-            in 17..18 -> TimePhase.SUNSET
-            in 19..21 -> TimePhase.EVENING
-            else -> TimePhase.NIGHT
-        }
+        totalSeconds += (clock.deltaTime * timeScale).toInt()
+
+        totalSeconds %= 24 * 3600
+
+        val hour = totalSeconds / 3600
+        val minute = (totalSeconds % 3600) / 60
+        val second = totalSeconds % 60
+
+        return TimeState(
+            hour = hour,
+            minute = minute,
+            second = second
+        )
     }
 }

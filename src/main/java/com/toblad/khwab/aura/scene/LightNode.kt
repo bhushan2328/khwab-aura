@@ -24,3 +24,4 @@ data class LightNode(
     val intensity: Float = 1.0f
 
 ) : SceneNode
+

@@ -1,43 +1,92 @@
 package com.toblad.khwab.aura.engine
 
-import com.toblad.khwab.aura.model.AuraConfig
-import com.toblad.khwab.aura.model.AuraTheme
-import com.toblad.khwab.aura.model.TimePhase
-import com.toblad.khwab.aura.model.WeatherState
+import com.toblad.khwab.aura.particle.ParticleSystem
+import com.toblad.khwab.aura.renderer.RenderContext
+import com.toblad.khwab.aura.scene.SceneGraph
+import com.toblad.khwab.aura.world.AuraWorld
 
 /**
- * Internal processing engine for Khwab Aura.
+ * Central runtime engine coordinating Aura.
  *
- * Responsible for generating the current AuraTheme
- * from configuration, time, and weather.
+ * AuraEngine owns the current AuraWorld and
+ * delegates simulation and rendering updates
+ * to specialized engines.
  */
-class AuraEngine {
+class AuraEngine(
+
+    private val worldSimulationEngine: WorldSimulationEngine = WorldSimulationEngine(),
+
+    private val sceneUpdater: SceneUpdater = SceneUpdater(),
+
+    private val animationUpdater: AnimationUpdater = AnimationUpdater(),
+
+    private val particleUpdater: ParticleUpdater = ParticleUpdater()
+
+) {
+
+    var state: EngineState = EngineState.STOPPED
+        private set
 
     /**
-     * Generates an AuraTheme using the current
-     * configuration.
-     *
-     * Future versions will integrate:
-     * - Sun Engine
-     * - Weather Engine
-     * - Theme Engine
-     * - Animation Engine
+     * Current simulated world.
      */
-    fun generateTheme(config: AuraConfig): AuraTheme {
+    private var world: AuraWorld? = null
 
-        return AuraTheme(
-            enabled = config.enabled,
-            timePhase = TimePhase.MORNING,
-            weatherState = WeatherState.CLEAR
-        )
+    fun start(initialWorld: AuraWorld) {
+
+        world = initialWorld
+
+        state = EngineState.RUNNING
+    }
+
+    fun pause() {
+
+        state = EngineState.PAUSED
+    }
+
+    fun stop() {
+
+        state = EngineState.STOPPED
+
+        world = null
     }
 
     /**
-     * Refreshes all internal Aura data.
-     *
-     * Placeholder implementation for now.
+     * Returns the current simulated world.
      */
-    fun refresh() {
-        // Future implementation.
+    fun getWorld(): AuraWorld? = world
+
+    /**
+     * Advances Aura by one frame.
+     */
+    fun update(
+        context: RenderContext,
+        clock: FrameClock
+    ) {
+
+        val currentWorld = world ?: return
+
+        val updatedWorld =
+            worldSimulationEngine.update(
+                currentWorld,
+                clock
+            )
+
+        world = updatedWorld
+
+        sceneUpdater.update(
+            updatedWorld.scene,
+            clock
+        )
+
+        animationUpdater.update(
+            context,
+            clock
+        )
+
+        particleUpdater.update(
+            updatedWorld.particles,
+            clock
+        )
     }
 }

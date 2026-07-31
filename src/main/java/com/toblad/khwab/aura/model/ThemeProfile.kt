@@ -1,36 +1,45 @@
 package com.toblad.khwab.aura.model
 
 /**
- * Describes the visual environment that Aura
- * should render.
+ * Describes the complete visual profile used by Aura.
  *
- * This class contains appearance information
- * only. Rendering is handled elsewhere.
+ * ThemeProfile contains appearance information only.
+ * Rendering and animation are handled by other layers.
  */
 data class ThemeProfile(
 
     /**
-     * Sky preset.
+     * Sky appearance preset.
      */
     val sky: String,
 
     /**
-     * Sun or moon appearance.
+     * Sun appearance preset.
      */
-    val celestialBody: String,
+    val sun: String,
 
     /**
-     * Cloud preset.
+     * Moon appearance preset.
+     */
+    val moon: String,
+
+    /**
+     * Cloud appearance preset.
      */
     val clouds: String,
 
     /**
-     * Weather effect.
+     * Weather effect preset.
      */
     val weatherEffect: String,
 
     /**
      * Ambient lighting preset.
      */
-    val ambientLight: String
+    val ambientLight: String,
+
+    /**
+     * Animation preset.
+     */
+    val animation: String
 )

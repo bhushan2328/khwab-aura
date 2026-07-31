@@ -1,21 +1,18 @@
 package com.toblad.khwab.aura.renderer
 
-import com.toblad.khwab.aura.scene.CloudNode
-import com.toblad.khwab.aura.scene.LightNode
-import com.toblad.khwab.aura.scene.MoonNode
-import com.toblad.khwab.aura.scene.SceneGraph
-import com.toblad.khwab.aura.scene.SkyNode
-import com.toblad.khwab.aura.scene.SunNode
-import com.toblad.khwab.aura.scene.WeatherNode
+import com.toblad.khwab.aura.scene.SceneBuilder
+import com.toblad.khwab.aura.model.AuraTheme
 
 /**
  * Central rendering coordinator.
  *
- * Receives a SceneGraph and delegates each
- * SceneNode to its dedicated renderer.
+ * Converts an AuraTheme into a SceneGraph,
+ * creates a RenderContext and delegates the
+ * rendering work to the specialized renderers.
  */
 class AuraRenderer(
 
+    private val sceneBuilder: SceneBuilder = SceneBuilder(),
     private val skyRenderer: SkyRenderer = SkyRenderer(),
     private val cloudRenderer: CloudRenderer = CloudRenderer(),
     private val sunRenderer: SunRenderer = SunRenderer(),
@@ -26,36 +23,31 @@ class AuraRenderer(
 ) {
 
     /**
-     * Renders the complete SceneGraph.
+     * Renders the complete Aura scene.
      */
     fun render(
-        scene: SceneGraph
+        theme: AuraTheme
     ) {
 
-        scene.firstNode<SkyNode>()?.let {
-            skyRenderer.render(it)
-        }
+        val scene = sceneBuilder.build(theme)
 
-        scene.nodesOfType<CloudNode>().forEach {
-            cloudRenderer.render(it)
-        }
+        val context = RenderContext(
+            scene = scene
+        )
 
-        scene.firstNode<SunNode>()?.let {
-            sunRenderer.render(it)
-        }
+        skyRenderer.render(context)
 
-        scene.firstNode<MoonNode>()?.let {
-            moonRenderer.render(it)
-        }
+        cloudRenderer.render(context)
 
-        scene.nodesOfType<WeatherNode>().forEach {
-            weatherRenderer.render(it)
-        }
+        sunRenderer.render(context)
 
-        scene.firstNode<LightNode>()?.let {
-            lightRenderer.render(it)
-        }
+        moonRenderer.render(context)
 
-        // AnimationController remains unchanged for now.
+        weatherRenderer.render(context)
+
+        lightRenderer.render(context)
+
+        animationController.apply(context)
     }
 }
+

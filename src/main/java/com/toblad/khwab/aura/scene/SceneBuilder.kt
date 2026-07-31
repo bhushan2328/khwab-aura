@@ -1,54 +1,82 @@
 package com.toblad.khwab.aura.scene
 
-import com.toblad.khwab.aura.model.AuraTheme
+import com.toblad.khwab.aura.world.AuraWorld
 
 /**
- * Converts an AuraTheme into a SceneGraph.
+ * Builds a renderable SceneGraph from the
+ * current AuraWorld.
  *
- * This class is responsible for translating
- * high-level theme information into
- * renderable scene nodes.
+ * SceneBuilder is responsible only for
+ * constructing the scene hierarchy.
+ *
+ * It does not perform rendering,
+ * animation or simulation.
  */
 class SceneBuilder {
 
     /**
-     * Builds a complete SceneGraph from the
-     * supplied AuraTheme.
+     * Builds a complete scene graph.
      */
     fun build(
-        theme: AuraTheme
+        world: AuraWorld
     ): SceneGraph {
 
-        val nodes = mutableListOf<SceneNode>()
+        val scene = SceneGraph()
 
-        nodes += SkyNode(
-            style = theme.profile.sky
-        )
+        buildSky(scene, world)
 
-        nodes += CloudNode(
-            id = "cloud-1",
-            style = theme.profile.clouds
-        )
+        buildSunAndMoon(scene, world)
 
-        nodes += SunNode(
-            style = theme.profile.sun
-        )
+        buildClouds(scene, world)
 
-        nodes += MoonNode(
-            style = theme.profile.moon
-        )
+        buildWeather(scene, world)
 
-        nodes += WeatherNode(
-            id = "weather",
-            style = theme.profile.weatherEffect
-        )
+        buildLighting(scene, world)
 
-        nodes += LightNode(
-            style = theme.profile.ambientLight
-        )
+        buildParticles(scene, world)
 
-        return SceneGraph(
-            nodes = nodes
-        )
+        return scene
+    }
+
+    private fun buildSky(
+        scene: SceneGraph,
+        world: AuraWorld
+    ) {
+        // TODO
+    }
+
+    private fun buildSunAndMoon(
+        scene: SceneGraph,
+        world: AuraWorld
+    ) {
+        // TODO
+    }
+
+    private fun buildClouds(
+        scene: SceneGraph,
+        world: AuraWorld
+    ) {
+        // TODO
+    }
+
+    private fun buildWeather(
+        scene: SceneGraph,
+        world: AuraWorld
+    ) {
+        // TODO
+    }
+
+    private fun buildLighting(
+        scene: SceneGraph,
+        world: AuraWorld
+    ) {
+        // TODO
+    }
+
+    private fun buildParticles(
+        scene: SceneGraph,
+        world: AuraWorld
+    ) {
+        // TODO
     }
 }

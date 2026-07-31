@@ -1,6 +1,6 @@
 package com.toblad.khwab.aura.engine
 
-import com.toblad.khwab.aura.model.WeatherState
+import com.toblad.khwab.aura.world.WeatherState
 
 /**
  * Provides the current weather state for Aura.
@@ -26,3 +26,4 @@ class WeatherEngine {
         return getCurrentWeather()
     }
 }
+

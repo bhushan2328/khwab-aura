@@ -19,3 +19,4 @@ data class SkyNode(
     val style: SkyStyle
 
 ) : SceneNode
+

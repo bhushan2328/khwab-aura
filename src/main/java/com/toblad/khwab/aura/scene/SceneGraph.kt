@@ -37,3 +37,4 @@ data class SceneGraph(
     inline fun <reified T : SceneNode> firstNode(): T? =
         nodes.filterIsInstance<T>().firstOrNull()
 }
+

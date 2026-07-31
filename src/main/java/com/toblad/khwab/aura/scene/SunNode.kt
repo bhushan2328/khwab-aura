@@ -19,3 +19,4 @@ data class SunNode(
     val style: SunStyle
 
 ) : SceneNode
+

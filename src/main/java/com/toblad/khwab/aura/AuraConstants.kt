@@ -35,3 +35,4 @@ object AuraConstants {
      */
     const val DEFAULT_LIGHTNING_DURATION_MS = 300L
 }
+

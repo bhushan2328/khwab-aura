@@ -24,3 +24,4 @@ data class WeatherNode(
     val intensity: Float = 1.0f
 
 ) : SceneNode
+

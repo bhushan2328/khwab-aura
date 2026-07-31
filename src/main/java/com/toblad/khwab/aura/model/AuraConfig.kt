@@ -40,3 +40,4 @@ data class AuraConfig(
      */
     val refreshIntervalMinutes: Int = 60
 )
+
