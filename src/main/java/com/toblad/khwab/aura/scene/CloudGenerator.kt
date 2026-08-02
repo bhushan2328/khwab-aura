@@ -24,9 +24,9 @@ class CloudGenerator {
 
         val count = when (style) {
             CloudStyle.CLEAR -> 0
-            CloudStyle.LIGHT -> 2
-            CloudStyle.PARTLY_CLOUDY -> 4
-            CloudStyle.CLOUDY -> 8
+            CloudStyle.FEW -> 2
+            CloudStyle.SCATTERED -> 4
+            CloudStyle.BROKEN -> 8
             CloudStyle.OVERCAST -> 12
             CloudStyle.STORM -> 16
         }
@@ -43,4 +43,3 @@ class CloudGenerator {
         }
     }
 }
-

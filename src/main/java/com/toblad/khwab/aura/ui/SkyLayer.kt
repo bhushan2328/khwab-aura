@@ -27,6 +27,12 @@ fun SkyLayer(
                 Color(0xFF1D3557)
             )
 
+        SkyStyle.DAWN ->
+            listOf(
+                Color(0xFF1D3557),
+                Color(0xFFFF9E80)
+            )
+
         SkyStyle.SUNRISE ->
             listOf(
                 Color(0xFFFFB703),
@@ -104,4 +110,3 @@ fun SkyLayer(
             )
     )
 }
-

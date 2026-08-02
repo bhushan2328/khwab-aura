@@ -32,17 +32,27 @@ class ThemeEngine {
     ): ThemeProfile {
 
         val sky = when (timePhase) {
+            TimePhase.PRE_DAWN -> SkyStyle.PRE_DAWN
+            TimePhase.SUNRISE -> SkyStyle.SUNRISE
             TimePhase.MORNING -> SkyStyle.MORNING
+            TimePhase.NOON -> SkyStyle.NOON
             TimePhase.AFTERNOON -> SkyStyle.AFTERNOON
-            TimePhase.EVENING -> SkyStyle.SUNSET
+            TimePhase.SUNSET -> SkyStyle.SUNSET
+            TimePhase.EVENING -> SkyStyle.EVENING
             TimePhase.NIGHT -> SkyStyle.NIGHT
+            TimePhase.MIDNIGHT -> SkyStyle.MIDNIGHT
         }
 
         val sun = when (timePhase) {
+            TimePhase.PRE_DAWN -> SunStyle.HIDDEN
+            TimePhase.SUNRISE -> SunStyle.DAWN
             TimePhase.MORNING -> SunStyle.MORNING
+            TimePhase.NOON -> SunStyle.NOON
             TimePhase.AFTERNOON -> SunStyle.AFTERNOON
-            TimePhase.EVENING -> SunStyle.SETTING
+            TimePhase.SUNSET -> SunStyle.SUNSET
+            TimePhase.EVENING -> SunStyle.HIDDEN
             TimePhase.NIGHT -> SunStyle.HIDDEN
+            TimePhase.MIDNIGHT -> SunStyle.HIDDEN
         }
 
         val moon = when (timePhase) {
@@ -51,30 +61,41 @@ class ThemeEngine {
         }
 
         val ambientLight = when (timePhase) {
+            TimePhase.PRE_DAWN -> AmbientLightStyle.PRE_DAWN
+            TimePhase.SUNRISE -> AmbientLightStyle.SUNRISE
             TimePhase.MORNING -> AmbientLightStyle.MORNING
+            TimePhase.NOON -> AmbientLightStyle.NOON
             TimePhase.AFTERNOON -> AmbientLightStyle.AFTERNOON
-            TimePhase.EVENING -> AmbientLightStyle.SUNSET
+            TimePhase.SUNSET -> AmbientLightStyle.SUNSET
+            TimePhase.EVENING -> AmbientLightStyle.EVENING
             TimePhase.NIGHT -> AmbientLightStyle.MOONLIGHT
+            TimePhase.MIDNIGHT -> AmbientLightStyle.NIGHT
         }
 
         val clouds = when (weatherState) {
             WeatherState.CLEAR -> CloudStyle.CLEAR
-            WeatherState.CLOUDY -> CloudStyle.CLOUDY
-            WeatherState.RAINY -> CloudStyle.RAIN
+            WeatherState.CLOUDY -> CloudStyle.BROKEN
+            WeatherState.RAIN -> CloudStyle.OVERCAST
+            WeatherState.SNOW -> CloudStyle.OVERCAST
+            WeatherState.FOG -> CloudStyle.OVERCAST
             WeatherState.STORM -> CloudStyle.STORM
         }
 
         val weatherEffect = when (weatherState) {
             WeatherState.CLEAR -> WeatherEffectStyle.NONE
             WeatherState.CLOUDY -> WeatherEffectStyle.NONE
-            WeatherState.RAINY -> WeatherEffectStyle.LIGHT_RAIN
-            WeatherState.STORM -> WeatherEffectStyle.THUNDERSTORM
+            WeatherState.RAIN -> WeatherEffectStyle.RAIN
+            WeatherState.SNOW -> WeatherEffectStyle.SNOW
+            WeatherState.FOG -> WeatherEffectStyle.FOG
+            WeatherState.STORM -> WeatherEffectStyle.STORM
         }
 
         val animation = when (weatherState) {
             WeatherState.CLEAR -> AnimationStyle.CALM
             WeatherState.CLOUDY -> AnimationStyle.NORMAL
-            WeatherState.RAINY -> AnimationStyle.RAIN
+            WeatherState.RAIN -> AnimationStyle.RAIN
+            WeatherState.SNOW -> AnimationStyle.SNOW
+            WeatherState.FOG -> AnimationStyle.BREEZY
             WeatherState.STORM -> AnimationStyle.STORM
         }
 
@@ -89,4 +110,3 @@ class ThemeEngine {
         )
     }
 }
-

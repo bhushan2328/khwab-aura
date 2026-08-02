@@ -33,11 +33,10 @@ fun WeatherLayer(
 
         when (effect) {
 
-            WeatherEffectStyle.LIGHT_RAIN,
-            WeatherEffectStyle.HEAVY_RAIN,
-            WeatherEffectStyle.THUNDERSTORM -> {
+            WeatherEffectStyle.RAIN,
+            WeatherEffectStyle.STORM -> {
 
-                val drops = if (effect == WeatherEffectStyle.HEAVY_RAIN) 60 else 30
+                val drops = if (effect == WeatherEffectStyle.STORM) 60 else 30
 
                 repeat(drops) { index ->
 
@@ -59,4 +58,3 @@ fun WeatherLayer(
         }
     }
 }
-

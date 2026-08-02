@@ -1,5 +1,7 @@
 package com.toblad.khwab.aura.model
 
+import com.toblad.khwab.aura.AuraConstants
+
 /**
  * Global configuration for the Khwab Aura engine.
  *
@@ -38,6 +40,5 @@ data class AuraConfig(
     /**
      * Theme refresh interval in minutes.
      */
-    val refreshIntervalMinutes: Int = 60
+    val refreshIntervalMinutes: Int = AuraConstants.DEFAULT_REFRESH_INTERVAL_MINUTES
 )
-
