@@ -104,13 +104,17 @@ class AuraEngine(
      * Generates the current AuraTheme from the
      * simulated world (if running) and the supplied
      * configuration.
+     *
+     * Time always reflects the device's actual clock when
+     * there is no running world simulation to source it
+     * from, so the theme stays in sync with real time of day.
      */
     fun generateTheme(config: AuraConfig): AuraTheme {
 
         val auraState =
             if (config.enabled) AuraState.ACTIVE else AuraState.OFF
 
-        val time: TimeState = world?.time ?: TimeState()
+        val time: TimeState = world?.time ?: TimeState.now()
 
         val timePhase = timePhaseEngine.calculate(time)
 
@@ -128,11 +132,19 @@ class AuraEngine(
     }
 
     /**
+     * Supplies fresh, real-world weather (e.g. fetched from
+     * a weather provider using the device's location) to be
+     * used the next time a theme is generated.
+     */
+    fun updateWeather(weather: com.toblad.khwab.aura.model.WeatherState) {
+
+        weatherEngine.updateWeather(
+            com.toblad.khwab.aura.world.WeatherState.valueOf(weather.name)
+        )
+    }
+
+    /**
      * Refreshes and returns the current AuraTheme.
-     *
-     * Placeholder implementation until a full
-     * refresh pipeline (re-simulating weather/time)
-     * is added.
      */
     fun refresh(config: AuraConfig): AuraTheme {
         return generateTheme(config)

@@ -5,6 +5,7 @@ import com.toblad.khwab.aura.engine.AuraEngine
 import com.toblad.khwab.aura.model.AuraConfig
 import com.toblad.khwab.aura.model.AuraState
 import com.toblad.khwab.aura.model.AuraTheme
+import com.toblad.khwab.aura.model.WeatherState
 
 /**
  * Central controller for the Khwab Aura module.
@@ -71,9 +72,15 @@ class AuraManager : AuraApi {
         theme = engine.generateTheme(config)
     }
 
+    override fun updateWeather(weather: WeatherState) {
+
+        engine.updateWeather(weather)
+
+        theme = engine.generateTheme(config)
+    }
+
     override fun refresh() {
 
         theme = engine.refresh(config)
     }
 }
-
