@@ -12,10 +12,13 @@ class ThemeEngine {
         auraState: AuraState,
         timePhase: TimePhase,
         weatherState: WeatherState,
-        enabled: Boolean
+        enabled: Boolean,
+        moonPhase: MoonStyle = MoonStyle.FULL,
+        season: Season = Season.SUMMER,
+        stormIntensity: Float = 0.5f
     ): AuraTheme {
 
-        val profile = createProfile(timePhase, weatherState)
+        val profile = createProfile(timePhase, weatherState, moonPhase, season, stormIntensity)
 
         return AuraTheme(
             auraState = auraState,
@@ -28,7 +31,10 @@ class ThemeEngine {
 
     private fun createProfile(
         timePhase: TimePhase,
-        weatherState: WeatherState
+        weatherState: WeatherState,
+        moonPhase: MoonStyle,
+        season: Season,
+        stormIntensity: Float
     ): ThemeProfile {
 
         val sky = when (timePhase) {
@@ -56,7 +62,10 @@ class ThemeEngine {
         }
 
         val moon = when (timePhase) {
-            TimePhase.NIGHT -> MoonStyle.FULL
+            TimePhase.NIGHT,
+            TimePhase.MIDNIGHT,
+            TimePhase.EVENING,
+            TimePhase.PRE_DAWN -> moonPhase
             else -> MoonStyle.HIDDEN
         }
 
@@ -106,7 +115,9 @@ class ThemeEngine {
             moon = moon,
             weatherEffect = weatherEffect,
             ambientLight = ambientLight,
-            animation = animation
+            animation = animation,
+            season = season,
+            stormIntensity = stormIntensity
         )
     }
 }

@@ -33,7 +33,9 @@ data class AuraTheme(
         moon = MoonStyle.HIDDEN,
         weatherEffect = WeatherEffectStyle.NONE,
         ambientLight = AmbientLightStyle.MORNING,
-        animation = AnimationStyle.CALM
+        animation = AnimationStyle.CALM,
+        season = Season.SUMMER,
+        stormIntensity = 0.5f
     ),
 
     /**
@@ -41,4 +43,3 @@ data class AuraTheme(
      */
     val enabled: Boolean = false
 )
-

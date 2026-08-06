@@ -33,12 +33,33 @@ data class AuraConfig(
     val animationsEnabled: Boolean = true,
 
     /**
-     * Enables ambient sounds.
+     * Enables ambient sounds. Defaults to on — flip to false
+     * once a settings screen exists to let users mute it.
      */
-    val ambientSoundEnabled: Boolean = false,
+    val ambientSoundEnabled: Boolean = true,
 
     /**
      * Theme refresh interval in minutes.
      */
-    val refreshIntervalMinutes: Int = AuraConstants.DEFAULT_REFRESH_INTERVAL_MINUTES
+    val refreshIntervalMinutes: Int = AuraConstants.DEFAULT_REFRESH_INTERVAL_MINUTES,
+
+    /**
+     * Device's current latitude, used to compute real
+     * sunrise/sunset, moon, and season. Null until the host
+     * app supplies a location.
+     */
+    val latitude: Double? = null,
+
+    /**
+     * Device's current longitude, used to compute real
+     * sunrise/sunset. Null until the host app supplies a
+     * location.
+     */
+    val longitude: Double? = null,
+
+    /**
+     * Real-world storm severity, normalized 0.0–1.0, supplied
+     * by the host app from live wind speed / precipitation.
+     */
+    val stormIntensity: Float = 0.5f
 )

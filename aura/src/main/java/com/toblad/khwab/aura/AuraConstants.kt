@@ -6,9 +6,10 @@ package com.toblad.khwab.aura
 object AuraConstants {
 
     /**
-     * Default interval for refreshing Aura.
+     * Default interval for refreshing Aura's real-world
+     * weather.
      */
-    const val DEFAULT_REFRESH_INTERVAL_MINUTES = 60
+    const val DEFAULT_REFRESH_INTERVAL_MINUTES = 5
 
     /**
      * Default animation duration in milliseconds.
@@ -35,4 +36,3 @@ object AuraConstants {
      */
     const val DEFAULT_LIGHTNING_DURATION_MS = 300L
 }
-

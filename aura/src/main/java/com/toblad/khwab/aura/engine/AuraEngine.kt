@@ -6,6 +6,9 @@ import com.toblad.khwab.aura.model.AuraTheme
 import com.toblad.khwab.aura.particle.ParticleSystem
 import com.toblad.khwab.aura.renderer.RenderContext
 import com.toblad.khwab.aura.scene.SceneGraph
+import com.toblad.khwab.aura.season.SeasonEngine
+import com.toblad.khwab.aura.sun.MoonPhaseCalculator
+import com.toblad.khwab.aura.sun.SolarCalculator
 import com.toblad.khwab.aura.world.AuraWorld
 import com.toblad.khwab.aura.world.TimeState
 
@@ -108,6 +111,11 @@ class AuraEngine(
      * Time always reflects the device's actual clock when
      * there is no running world simulation to source it
      * from, so the theme stays in sync with real time of day.
+     *
+     * When the config carries a real location, the time-of-day
+     * phase, moon appearance and season are derived from real
+     * solar/lunar positions and hemisphere rather than fixed
+     * defaults.
      */
     fun generateTheme(config: AuraConfig): AuraTheme {
 
@@ -116,7 +124,22 @@ class AuraEngine(
 
         val time: TimeState = world?.time ?: TimeState.now()
 
-        val timePhase = timePhaseEngine.calculate(time)
+        val sunTimes =
+            if (config.latitude != null && config.longitude != null)
+                SolarCalculator.calculate(config.latitude, config.longitude)
+            else
+                null
+
+        val timePhase =
+            timePhaseEngine.calculate(
+                time,
+                sunTimes?.sunriseHour,
+                sunTimes?.sunsetHour
+            )
+
+        val moonPhase = MoonPhaseCalculator.calculate()
+
+        val season = SeasonEngine.calculate(config.latitude)
 
         val worldWeather = world?.weather ?: weatherEngine.refresh()
 
@@ -127,7 +150,10 @@ class AuraEngine(
             auraState = auraState,
             timePhase = timePhase,
             weatherState = weatherState,
-            enabled = config.enabled
+            enabled = config.enabled,
+            moonPhase = moonPhase,
+            season = season,
+            stormIntensity = config.stormIntensity
         )
     }
 
