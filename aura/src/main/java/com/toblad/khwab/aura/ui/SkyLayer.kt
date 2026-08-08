@@ -24,14 +24,18 @@ import com.toblad.khwab.aura.model.SkyStyle
 @Composable
 fun SkyLayer(theme: AuraTheme) {
 
-    // Resolve the target gradient stops for the current sky style
+    // Resolve the target gradient stops for the current sky style.
+    // All daytime phases now have a three-stop gradient:
+    //   top  = deep zenith blue
+    //   mid  = main sky colour
+    //   bot  = warm/pale horizon band so the sky doesn't look flat
     val (rawTop, rawMid, rawBot) = when (theme.profile.sky) {
         SkyStyle.PRE_DAWN   -> Triple(Color(0xFF03045E), Color(0xFF1D3557),  null)
         SkyStyle.DAWN       -> Triple(Color(0xFF1A1A3E), Color(0xFF8B3A62),  Color(0xFFFF9E80))
         SkyStyle.SUNRISE    -> Triple(Color(0xFFFFB703), Color(0xFFFF7F50),  Color(0xFFFFC8DD))
-        SkyStyle.MORNING    -> Triple(Color(0xFF4FC3F7), Color(0xFFB3E5FC),  null)
-        SkyStyle.NOON       -> Triple(Color(0xFF2196F3), Color(0xFFBBDEFB),  null)
-        SkyStyle.AFTERNOON  -> Triple(Color(0xFF42A5F5), Color(0xFF90CAF9),  null)
+        SkyStyle.MORNING    -> Triple(Color(0xFF4FC3F7), Color(0xFF87CEEB),  Color(0xFFFFF8E1))  // warm horizon
+        SkyStyle.NOON       -> Triple(Color(0xFF1565C0), Color(0xFF42A5F5),  Color(0xFFE3F2FD))  // deep zenith + pale horizon
+        SkyStyle.AFTERNOON  -> Triple(Color(0xFF0D47A1), Color(0xFF42A5F5),  Color(0xFFFFF9C4))  // golden horizon
         SkyStyle.SUNSET     -> Triple(Color(0xFFFF7043), Color(0xFFAB47BC),  Color(0xFF5E35B1))
         SkyStyle.EVENING    -> Triple(Color(0xFF3949AB), Color(0xFF7986CB),  null)
         SkyStyle.NIGHT      -> Triple(Color(0xFF0D1B2A), Color(0xFF000814),  null)

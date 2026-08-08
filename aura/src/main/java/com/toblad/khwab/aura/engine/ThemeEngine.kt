@@ -82,12 +82,12 @@ class ThemeEngine {
         }
 
         val clouds = when (weatherState) {
-            WeatherState.CLEAR -> CloudStyle.CLEAR
-            WeatherState.CLOUDY -> CloudStyle.BROKEN
-            WeatherState.RAIN -> CloudStyle.OVERCAST
-            WeatherState.SNOW -> CloudStyle.OVERCAST
-            WeatherState.FOG -> CloudStyle.OVERCAST
-            WeatherState.STORM -> CloudStyle.STORM
+            WeatherState.CLEAR  -> CloudStyle.CLEAR
+            WeatherState.CLOUDY -> CloudStyle.SCATTERED  // was BROKEN — SCATTERED is more realistic for partly-cloudy
+            WeatherState.RAIN   -> CloudStyle.OVERCAST
+            WeatherState.SNOW   -> CloudStyle.OVERCAST
+            WeatherState.FOG    -> CloudStyle.OVERCAST
+            WeatherState.STORM  -> CloudStyle.STORM
         }
 
         val weatherEffect = when (weatherState) {

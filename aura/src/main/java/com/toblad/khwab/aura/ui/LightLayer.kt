@@ -31,8 +31,8 @@ fun LightLayer(theme: AuraTheme) {
     val tintTarget = when (theme.profile.ambientLight) {
         AmbientLightStyle.PRE_DAWN  -> Color(0x55000033)
         AmbientLightStyle.SUNRISE   -> Color(0x22FFB74D)
-        AmbientLightStyle.MORNING   -> Color.Transparent
-        AmbientLightStyle.NOON      -> Color.Transparent
+        AmbientLightStyle.MORNING   -> Color(0x06B3E5FC)  // faint sky-blue scatter
+        AmbientLightStyle.NOON      -> Color(0x08FFF9C4)  // barely-visible warm gold
         AmbientLightStyle.AFTERNOON -> Color(0x11FFF59D)
         AmbientLightStyle.SUNSET    -> Color(0x33FF7043)
         AmbientLightStyle.EVENING   -> Color(0x332C3E50)
