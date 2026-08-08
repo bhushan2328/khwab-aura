@@ -141,10 +141,8 @@ class AuraEngine(
 
         val season = SeasonEngine.calculate(config.latitude)
 
-        val worldWeather = world?.weather ?: weatherEngine.refresh()
-
-        val weatherState =
-            com.toblad.khwab.aura.model.WeatherState.valueOf(worldWeather.name)
+        // world.WeatherState is now a typealias of model.WeatherState — no conversion needed
+        val weatherState = world?.weather ?: weatherEngine.refresh()
 
         return themeEngine.createTheme(
             auraState = auraState,
@@ -163,10 +161,8 @@ class AuraEngine(
      * used the next time a theme is generated.
      */
     fun updateWeather(weather: com.toblad.khwab.aura.model.WeatherState) {
-
-        weatherEngine.updateWeather(
-            com.toblad.khwab.aura.world.WeatherState.valueOf(weather.name)
-        )
+        // world.WeatherState is a typealias of model.WeatherState — direct pass-through
+        weatherEngine.updateWeather(weather)
     }
 
     /**

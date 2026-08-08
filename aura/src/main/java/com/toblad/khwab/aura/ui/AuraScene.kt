@@ -9,23 +9,29 @@ import com.toblad.khwab.aura.model.AuraTheme
 /**
  * Root composable for the Aura scene.
  *
- * This composable assembles all visual layers.
+ * Layer order (bottom → top):
+ *   SkyLayer      — background gradient
+ *   CloudLayer    — drifting cloud puffs
+ *   SunLayer      — sun with corona
+ *   MoonLayer     — moon with phase shape
+ *   WeatherLayer  — rain / snow / fog / lightning
+ *   SeasonLayer   — petals / leaves / fireflies / frost
+ *   AnimationLayer — wind / scene-wide animation signals
+ *   LightLayer    — ambient light tint (last so it tints everything above)
  */
 @Composable
 fun AuraScene(
     theme: AuraTheme,
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier.fillMaxSize()
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
         SkyLayer(theme)
         CloudLayer(theme)
         SunLayer(theme)
         MoonLayer(theme)
         WeatherLayer(theme)
         SeasonLayer(theme)
-        LightLayer(theme)
         AnimationLayer(theme)
+        LightLayer(theme)   // ← moved last: tints every layer beneath it
     }
 }

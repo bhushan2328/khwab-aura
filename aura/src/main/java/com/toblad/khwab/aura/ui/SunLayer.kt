@@ -33,19 +33,22 @@ fun SunLayer(
 
     val isResumed by rememberIsResumed()
 
+    // SunEngine is stateless — create once, reuse forever
+    val engine = remember { SunEngine() }
+
     var position by remember {
-        mutableStateOf(SunEngine().calculate(TimeState.now()))
+        mutableStateOf(engine.calculate(TimeState.now()))
     }
 
     LaunchedEffect(isResumed) {
 
         if (!isResumed) return@LaunchedEffect
 
-        position = SunEngine().calculate(TimeState.now())
+        position = engine.calculate(TimeState.now())
 
         while (true) {
             delay(30_000L)
-            position = SunEngine().calculate(TimeState.now())
+            position = engine.calculate(TimeState.now())
         }
     }
 

@@ -34,19 +34,22 @@ fun MoonLayer(
 
     val isResumed by rememberIsResumed()
 
+    // SunEngine is stateless — create once, reuse forever
+    val engine = remember { SunEngine() }
+
     var position by remember {
-        mutableStateOf(moonPosition())
+        mutableStateOf(moonPosition(engine))
     }
 
     LaunchedEffect(isResumed) {
 
         if (!isResumed) return@LaunchedEffect
 
-        position = moonPosition()
+        position = moonPosition(engine)
 
         while (true) {
             delay(30_000L)
-            position = moonPosition()
+            position = moonPosition(engine)
         }
     }
 
@@ -84,7 +87,7 @@ fun MoonLayer(
     }
 }
 
-private fun moonPosition(): SunEngine.SunPosition {
+private fun moonPosition(engine: SunEngine): SunEngine.SunPosition {
 
     val now = TimeState.now()
 
@@ -97,5 +100,5 @@ private fun moonPosition(): SunEngine.SunPosition {
         second = shiftedSeconds % 60
     )
 
-    return SunEngine().calculate(shiftedTime)
+    return engine.calculate(shiftedTime)
 }
