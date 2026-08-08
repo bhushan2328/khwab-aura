@@ -11,13 +11,14 @@ import com.toblad.khwab.aura.model.AuraTheme
  *
  * Layer order (bottom → top):
  *   SkyLayer      — background gradient
+ *   StarLayer     — twinkling stars (night phases only)
  *   CloudLayer    — drifting cloud puffs
  *   SunLayer      — sun with corona
  *   MoonLayer     — moon with phase shape
  *   WeatherLayer  — rain / snow / fog / lightning
  *   SeasonLayer   — petals / leaves / fireflies / frost
  *   AnimationLayer — wind / scene-wide animation signals
- *   LightLayer    — ambient light tint (last so it tints everything above)
+ *   LightLayer    — ambient light tint + lighting engine intensity (last)
  */
 @Composable
 fun AuraScene(
@@ -26,6 +27,7 @@ fun AuraScene(
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         SkyLayer(theme)
+        StarLayer(theme)
         CloudLayer(theme)
         SunLayer(theme)
         MoonLayer(theme)
