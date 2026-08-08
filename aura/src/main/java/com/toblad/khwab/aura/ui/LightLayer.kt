@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.toblad.khwab.aura.engine.LightingEngine
@@ -52,7 +53,7 @@ fun LightLayer(theme: AuraTheme) {
     // LightingEngine computes how bright the scene is (0 = very dark, 1 = full sun).
     // We invert it to get a darkening alpha: bright sun → nearly zero darkening,
     // heavy storm → up to ~0.40 darkening.
-    val lightingEngine = LightingEngine()
+    val lightingEngine = remember { LightingEngine() }
     val lightingState  = lightingEngine.update(
         time    = TimeState.now(),
         weather = theme.profile.weatherEffect.toWorldWeather()

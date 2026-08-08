@@ -12,34 +12,40 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.Stroke
 import com.toblad.khwab.aura.model.AuraTheme
 import com.toblad.khwab.aura.model.TimePhase
 import com.toblad.khwab.aura.model.WeatherState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * Distant bird silhouettes drifting across the upper sky.
+ * Distant bird silhouettes drifting across the upper sky, arranged in small V-flocks.
  *
  * Shown only when:
  *  - Time is MORNING, NOON, or AFTERNOON
  *  - Weather is CLEAR or CLOUDY (birds don't fly in storms/fog/snow)
  *
- * Each bird is a simple V-path (two curved strokes) that bobs
- * gently while gliding from right to left. Mutable class — no
- * per-tick allocation.
+ * Each bird has:
+ *  - A wing-flap phase that animates the wing arc up/down
+ *  - A gentle vertical bob for gliding feel
+ *  - Flock grouping: birds are placed in small V-formations (2–3 per group)
+ *
+ * Mutable class — no per-tick allocation.
  */
 
 private class Bird(
-    var x: Float,        // 0..1 normalised
-    val y: Float,        // 0..0.45 (upper sky only)
-    val speed: Float,    // drift speed per tick
-    val size: Float,     // wing span multiplier
-    var bob: Float,      // vertical bob accumulator
-    val bobRate: Float,  // how fast it bobs
-    val bobAmp: Float    // amplitude of bob (pixels)
+    var x: Float,          // 0..1 normalised
+    var y: Float,          // base y — 0..0.45 (upper sky only)
+    val speed: Float,      // drift speed per tick
+    val size: Float,       // wing span multiplier
+    var bob: Float,        // vertical bob accumulator
+    val bobRate: Float,    // how fast it bobs
+    val bobAmp: Float,     // amplitude of bob (pixels)
+    var flapPhase: Float,  // current wing-flap phase (radians)
+    val flapRate: Float    // flap speed per tick
 )
 
 @Composable
@@ -53,19 +59,51 @@ fun BirdLayer(theme: AuraTheme) {
 
     val isResumed by rememberIsResumed()
 
+    // Build 2 small V-flocks of 2–3 birds each (total 5–6 birds)
     val birds = remember {
         mutableStateListOf<Bird>().apply {
-            repeat(5) {
-                add(Bird(
-                    x       = Random.nextFloat(),
-                    y       = Random.nextFloat() * 0.38f + 0.03f,
-                    speed   = 0.00018f + Random.nextFloat() * 0.00014f,
-                    size    = Random.nextFloat() * 0.6f + 0.5f,  // 0.5–1.1×
-                    bob     = Random.nextFloat() * 6.28f,
-                    bobRate = 0.04f + Random.nextFloat() * 0.03f,
-                    bobAmp  = 2.5f + Random.nextFloat() * 2.5f
-                ))
+            repeat(2) { flockIdx ->
+                val flockX     = Random.nextFloat()
+                val flockY     = Random.nextFloat() * 0.30f + 0.04f
+                val baseSpeed  = 0.00016f + Random.nextFloat() * 0.00012f
+                val flockSize  = if (Random.nextBoolean()) 3 else 2
+
+                // V-formation: lead bird at (0,0), then offset flankers
+                val positions = buildList {
+                    add(Offset(0f, 0f))  // leader
+                    for (i in 1 until flockSize) {
+                        // Each subsequent bird is behind and to the side
+                        val side = if (i % 2 == 0) 1f else -1f
+                        add(Offset(side * i * 0.018f, i * 0.012f))
+                    }
+                }
+
+                for (pos in positions) {
+                    add(Bird(
+                        x          = (flockX + pos.x).coerceIn(0f, 1f),
+                        y          = (flockY + pos.y).coerceIn(0f, 0.45f),
+                        speed      = baseSpeed * (0.9f + Random.nextFloat() * 0.2f),
+                        size       = Random.nextFloat() * 0.5f + 0.55f,
+                        bob        = Random.nextFloat() * 6.28f,
+                        bobRate    = 0.03f + Random.nextFloat() * 0.02f,
+                        bobAmp     = 1.5f + Random.nextFloat() * 1.5f,
+                        flapPhase  = Random.nextFloat() * 6.28f,
+                        flapRate   = 0.09f + Random.nextFloat() * 0.04f
+                    ))
+                }
             }
+            // One lone soaring bird
+            add(Bird(
+                x          = Random.nextFloat(),
+                y          = Random.nextFloat() * 0.25f + 0.05f,
+                speed      = 0.00010f + Random.nextFloat() * 0.00008f,
+                size       = 1.1f + Random.nextFloat() * 0.3f,
+                bob        = Random.nextFloat() * 6.28f,
+                bobRate    = 0.015f,
+                bobAmp     = 3.0f,
+                flapPhase  = Random.nextFloat() * 6.28f,
+                flapRate   = 0.05f   // soaring = slow lazy flap
+            ))
         }
     }
 
@@ -73,9 +111,10 @@ fun BirdLayer(theme: AuraTheme) {
         if (!isResumed) return@LaunchedEffect
         while (isActive) {
             for (bird in birds) {
-                bird.x   -= bird.speed
-                bird.bob += bird.bobRate
-                if (bird.x < -0.05f) bird.x = 1.05f   // wrap right
+                bird.x         -= bird.speed
+                bird.bob       += bird.bobRate
+                bird.flapPhase += bird.flapRate
+                if (bird.x < -0.06f) bird.x = 1.06f   // wrap right
             }
             delay(16L)
         }
@@ -84,39 +123,52 @@ fun BirdLayer(theme: AuraTheme) {
     Canvas(modifier = Modifier.fillMaxSize()) {
         for (bird in birds) {
             val cx   = bird.x * size.width
-            val cy   = bird.y * size.height + kotlin.math.sin(bird.bob) * bird.bobAmp
-            val span = size.minDimension * 0.012f * bird.size
-            drawBird(Offset(cx, cy), span)
+            val cy   = bird.y * size.height + sin(bird.bob) * bird.bobAmp
+            val span = size.minDimension * 0.013f * bird.size
+            // flapT in -1..1 — drives how much the wing tip is lifted vs dropped
+            val flapT = sin(bird.flapPhase).toFloat()
+            drawBird(Offset(cx, cy), span, flapT)
         }
     }
 }
 
 /**
- * Draws a simple V-silhouette bird: two arced wing strokes meeting at the body.
- * The stroke is semi-transparent dark so it works on any sky brightness.
+ * Draws a bird silhouette as two curved-arc wings meeting at the body centre.
+ *
+ * [flapT] in -1..1:
+ *  - +1 = wings fully raised (upstroke peak)
+ *  - -1 = wings fully lowered (downstroke)
+ *  -  0 = neutral glide (horizontal)
+ *
+ * Wing arc is drawn as a quadratic bezier so the wing bends naturally.
  */
-private fun DrawScope.drawBird(center: Offset, halfSpan: Float) {
-    val bodyY  = center.y
-    val tipDip = halfSpan * 0.35f   // wing-tip dips slightly below centre
+private fun DrawScope.drawBird(center: Offset, halfSpan: Float, flapT: Float) {
+    val tipLift   = halfSpan * 0.50f * flapT  // positive = tip rises above body
 
-    // Left wing: arc from body centre out to left tip
-    drawLine(
-        color       = Color.Black.copy(alpha = 0.35f),
-        start       = Offset(center.x, bodyY),
-        end         = Offset(center.x - halfSpan, bodyY - tipDip),
-        strokeWidth = 1.8f
+    val leftTip   = Offset(center.x - halfSpan, center.y - tipLift)
+    val rightTip  = Offset(center.x + halfSpan, center.y - tipLift)
+
+    // Control point: mid-wing bends upward a bit for the natural arc shape
+    val midLift  = halfSpan * 0.18f * flapT
+    val leftCtrl  = Offset(center.x - halfSpan * 0.55f, center.y - midLift)
+    val rightCtrl = Offset(center.x + halfSpan * 0.55f, center.y - midLift)
+
+    val path = Path().apply {
+        moveTo(leftTip.x, leftTip.y)
+        quadraticBezierTo(leftCtrl.x, leftCtrl.y, center.x, center.y)
+        quadraticBezierTo(rightCtrl.x, rightCtrl.y, rightTip.x, rightTip.y)
+    }
+
+    drawPath(
+        path   = path,
+        color  = Color.Black.copy(alpha = 0.32f),
+        style  = Stroke(width = 1.8f)
     )
-    // Right wing
-    drawLine(
-        color       = Color.Black.copy(alpha = 0.35f),
-        start       = Offset(center.x, bodyY),
-        end         = Offset(center.x + halfSpan, bodyY - tipDip),
-        strokeWidth = 1.8f
-    )
-    // Tiny body dot
+
+    // Tiny body dot at centre
     drawCircle(
-        color  = Color.Black.copy(alpha = 0.30f),
-        radius = 1.5f,
+        color  = Color.Black.copy(alpha = 0.28f),
+        radius = 1.4f,
         center = center
     )
 }

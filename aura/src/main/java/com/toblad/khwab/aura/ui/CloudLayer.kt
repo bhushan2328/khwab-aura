@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.toblad.khwab.aura.model.AuraTheme
 import com.toblad.khwab.aura.model.CloudStyle
@@ -114,17 +115,38 @@ fun CloudLayer(theme: AuraTheme) {
         }
     }
 
+    // Underside shadow tint — slightly darker/greyer than the cloud face
+    val shadowColor = when {
+        style == CloudStyle.STORM    -> Color(0xAA757575)
+        style == CloudStyle.OVERCAST -> Color(0xBBBBBBBB)
+        else -> cloudColor.copy(alpha = cloudColor.alpha * 0.55f)
+    }
+
     Canvas(modifier = Modifier.fillMaxSize()) {
         val minDim = size.minDimension
         for (cloud in clouds) {
             val cx = cloud.x * size.width
             val cy = cloud.y * size.height
             cloud.radii.forEachIndexed { i, radiusFraction ->
-                val r = radiusFraction * minDim
+                val r  = radiusFraction * minDim
+                val px = cx + cloud.offsets[i].x * minDim
+                val py = cy + cloud.offsets[i].y * minDim
+
+                // Radial gradient: bright top face → shadow underside
+                // Gives each puff a soft 3-D volume look instead of flat solid fill
+                val gradientCenter = Offset(px, py - r * 0.25f)  // offset slightly upward
                 drawCircle(
-                    color  = cloudColor,
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            cloudColor,
+                            cloudColor.copy(alpha = cloudColor.alpha * 0.85f),
+                            shadowColor
+                        ),
+                        center = gradientCenter,
+                        radius = r * 1.05f
+                    ),
                     radius = r,
-                    center = Offset(cx + cloud.offsets[i].x * minDim, cy + cloud.offsets[i].y * minDim)
+                    center = Offset(px, py)
                 )
             }
         }

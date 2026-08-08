@@ -69,12 +69,15 @@ fun SeasonLayer(theme: AuraTheme) {
 
     val isResumed by rememberIsResumed()
 
+    // Wind intensity from AnimationLayer — scales petal/leaf horizontal drift
+    val windIntensity = LocalWindIntensity.current
+
     when {
         season == Season.SPRING && !isNight ->
-            FallingBits(color = Color(0xFFFFC1E3), count = 24, isResumed = isResumed)
+            FallingBits(color = Color(0xFFFFC1E3), count = 24, isResumed = isResumed, windIntensity = windIntensity)
 
         season == Season.AUTUMN && !isNight ->
-            FallingBits(color = Color(0xFFD08A3E), count = 24, isResumed = isResumed)
+            FallingBits(color = Color(0xFFD08A3E), count = 24, isResumed = isResumed, windIntensity = windIntensity)
 
         season == Season.SUMMER && isNight ->
             Fireflies(count = 18, isResumed = isResumed)
@@ -87,7 +90,7 @@ fun SeasonLayer(theme: AuraTheme) {
 }
 
 @Composable
-private fun FallingBits(color: Color, count: Int, isResumed: Boolean) {
+private fun FallingBits(color: Color, count: Int, isResumed: Boolean, windIntensity: Float = 0f) {
 
     val bits = remember {
         mutableStateListOf<FallingBit>().apply {
@@ -111,11 +114,13 @@ private fun FallingBits(color: Color, count: Int, isResumed: Boolean) {
     LaunchedEffect(isResumed) {
         if (!isResumed) return@LaunchedEffect
         while (isActive) {
+            // Wind scales horizontal drift — calm = natural gentle drift, storm = swept sideways
+            val windDrift = windIntensity * 0.0008f
             for (bit in bits) {
                 bit.y    += bit.fallSpeed * 0.01f
-                bit.x    += bit.drift
-                bit.sway += 0.05f
-                bit.spin += bit.rotationRate   // in-place — no copy()
+                bit.x    += bit.drift + windDrift       // wind pushes all bits in one direction
+                bit.sway += 0.05f + windIntensity * 0.06f  // sway frequency scales with wind
+                bit.spin += bit.rotationRate * (1f + windIntensity * 1.5f)  // tumble faster in wind
                 if (bit.y > 1f) bit.y = 0f
                 if (bit.x > 1f) bit.x = 0f
                 if (bit.x < 0f) bit.x = 1f

@@ -99,13 +99,18 @@ class ThemeEngine {
             WeatherState.STORM -> WeatherEffectStyle.STORM
         }
 
-        val animation = when (weatherState) {
-            WeatherState.CLEAR -> AnimationStyle.CALM
-            WeatherState.CLOUDY -> AnimationStyle.NORMAL
-            WeatherState.RAIN -> AnimationStyle.RAIN
-            WeatherState.SNOW -> AnimationStyle.SNOW
-            WeatherState.FOG -> AnimationStyle.BREEZY
-            WeatherState.STORM -> AnimationStyle.STORM
+        val animation = when {
+            // Daytime clear sky has a gentle breeze — more dynamic than dead CALM
+            weatherState == WeatherState.CLEAR &&
+                    (timePhase == TimePhase.NOON || timePhase == TimePhase.AFTERNOON) ->
+                AnimationStyle.BREEZY
+            weatherState == WeatherState.CLEAR -> AnimationStyle.CALM
+            weatherState == WeatherState.CLOUDY -> AnimationStyle.NORMAL
+            weatherState == WeatherState.RAIN -> AnimationStyle.RAIN
+            weatherState == WeatherState.SNOW -> AnimationStyle.SNOW
+            weatherState == WeatherState.FOG -> AnimationStyle.BREEZY
+            weatherState == WeatherState.STORM -> AnimationStyle.STORM
+            else -> AnimationStyle.CALM
         }
 
         return ThemeProfile(

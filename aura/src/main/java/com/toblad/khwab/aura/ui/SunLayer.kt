@@ -28,8 +28,11 @@ import kotlin.math.sin
  *  - A per-style core colour (dawn=orange, noon=white-yellow, sunset=deep-red)
  *  - A soft radial-gradient disc
  *  - An outer semi-transparent corona ring
- *  - Light-ray spokes at DAWN and SUNSET (low-angle sun)
+ *  - Light-ray spokes at DAWN and SUNSET (low-angle sun) with slow rotation
  *  - An atmospheric horizon bloom ellipse at DAWN and SUNSET
+ *
+ * Low-angle sun (DAWN/SUNSET) is placed near the horizon (y ≈ 82% of screen height)
+ * so it aligns with the bloom ellipse that simulates atmospheric scatter.
  */
 @Composable
 fun SunLayer(theme: AuraTheme) {
@@ -45,9 +48,22 @@ fun SunLayer(theme: AuraTheme) {
         mutableStateOf(engine.calculate(TimeState.now()))
     }
 
+    // Slowly rotating ray angle (degrees) — full rotation every ~80 s
+    var rayAngle by remember { mutableStateOf(0f) }
+
     LaunchedEffect(isResumed) {
         if (!isResumed) return@LaunchedEffect
         position = engine.calculate(TimeState.now())
+        while (true) {
+            delay(50L)
+            // Rotate 0.05°/tick × 20 fps ≈ 1°/s → full revolution in ~6 min
+            // Kept very slow so it reads as natural shimmer, not a spinning star
+            rayAngle = (rayAngle + 0.05f) % 360f
+        }
+    }
+
+    LaunchedEffect(isResumed) {
+        if (!isResumed) return@LaunchedEffect
         while (true) {
             delay(30_000L)
             position = engine.calculate(TimeState.now())
@@ -71,10 +87,20 @@ fun SunLayer(theme: AuraTheme) {
     Canvas(modifier = Modifier.fillMaxSize()) {
 
         val radius = size.minDimension * 0.08f
-        val center = Offset(
-            x = size.width * position.x,
-            y = size.height * (1f - position.y) * 0.45f
-        )
+
+        // Low-angle sun hugs the horizon (y = 82% of height, matching bloom ellipse).
+        // High-angle sun uses SunEngine position but limited to upper 55% of sky.
+        val center = if (isLowAngle) {
+            Offset(
+                x = size.width * position.x,
+                y = size.height * 0.82f            // horizon line
+            )
+        } else {
+            Offset(
+                x = size.width * position.x,
+                y = size.height * (1f - position.y) * 0.55f
+            )
+        }
 
         // ── Atmospheric horizon bloom (DAWN / SUNSET only) ────────────────────
         // Wide warm ellipse near the bottom of the sky simulating scatter glow
@@ -107,10 +133,13 @@ fun SunLayer(theme: AuraTheme) {
             center = center
         )
 
-        // ── Light-ray spokes (DAWN / SUNSET) ─────────────────────────────────
-        // 12 tapered lines radiate from the sun centre at low-angle phases
+        // ── Light-ray spokes (DAWN / SUNSET) — slowly rotating ───────────────
+        // 12 tapered lines radiate from the sun centre at low-angle phases.
+        // The entire set is rotated by rayAngle so they shimmer over time.
         if (isLowAngle) {
-            drawSunRays(center = center, radius = radius, coreColor = coreColor)
+            rotate(degrees = rayAngle, pivot = center) {
+                drawSunRays(center = center, radius = radius, coreColor = coreColor)
+            }
         }
 
         // ── Inner soft disc ───────────────────────────────────────────────────
@@ -132,8 +161,8 @@ fun SunLayer(theme: AuraTheme) {
 
 /**
  * Draws 12 thin tapered light-ray spokes around [center].
- * Each spoke is a short transparent line radiating outward.
  * Alternating long/short rays give the classic sun-ray pattern.
+ * The caller is responsible for applying any rotation transform.
  */
 private fun DrawScope.drawSunRays(
     center: Offset,
