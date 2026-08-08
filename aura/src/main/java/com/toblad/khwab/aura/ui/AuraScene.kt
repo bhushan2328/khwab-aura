@@ -15,6 +15,7 @@ import com.toblad.khwab.aura.model.AuraTheme
  *   CloudLayer    — drifting cloud puffs (wind-speed aware)
  *   SunLayer      — sun with corona
  *   MoonLayer     — moon with phase shape
+ *   BirdLayer     — distant bird silhouettes (morning/noon/afternoon clear)
  *   WeatherLayer  — rain / snow / fog / lightning
  *   SeasonLayer   — petals / leaves / fireflies / frost
  *   AnimationLayer — provides LocalWindIntensity to all above layers
@@ -35,6 +36,7 @@ fun AuraScene(
             CloudLayer(theme)
             SunLayer(theme)
             MoonLayer(theme)
+            BirdLayer(theme)
             WeatherLayer(theme)
             SeasonLayer(theme)
         }
