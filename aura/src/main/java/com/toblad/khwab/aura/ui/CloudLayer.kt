@@ -85,11 +85,16 @@ fun CloudLayer(theme: AuraTheme) {
         }
     }
 
+    // Read wind from AnimationLayer's CompositionLocal — scales cloud speed
+    val windIntensity = LocalWindIntensity.current
+
     LaunchedEffect(style, isResumed) {
         if (!isResumed) return@LaunchedEffect
         while (isActive) {
+            // Base speed + wind bonus (storm = 3× base drift)
+            val speedMult = 1f + windIntensity * 2.0f
             for (cloud in clouds) {
-                cloud.x -= cloud.speed        // drift left
+                cloud.x -= cloud.speed * speedMult
                 if (cloud.x < -0.25f) cloud.x = 1.25f  // wrap around
             }
             delay(16L)

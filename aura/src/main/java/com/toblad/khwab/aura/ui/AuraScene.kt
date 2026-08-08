@@ -12,13 +12,16 @@ import com.toblad.khwab.aura.model.AuraTheme
  * Layer order (bottom → top):
  *   SkyLayer      — background gradient
  *   StarLayer     — twinkling stars (night phases only)
- *   CloudLayer    — drifting cloud puffs
+ *   CloudLayer    — drifting cloud puffs (wind-speed aware)
  *   SunLayer      — sun with corona
  *   MoonLayer     — moon with phase shape
  *   WeatherLayer  — rain / snow / fog / lightning
  *   SeasonLayer   — petals / leaves / fireflies / frost
- *   AnimationLayer — wind / scene-wide animation signals
+ *   AnimationLayer — provides LocalWindIntensity to all above layers
  *   LightLayer    — ambient light tint + lighting engine intensity (last)
+ *
+ * AnimationLayer wraps the visual layers as a CompositionLocalProvider
+ * so CloudLayer and SeasonLayer can read LocalWindIntensity.
  */
 @Composable
 fun AuraScene(
@@ -27,13 +30,14 @@ fun AuraScene(
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         SkyLayer(theme)
-        StarLayer(theme)
-        CloudLayer(theme)
-        SunLayer(theme)
-        MoonLayer(theme)
-        WeatherLayer(theme)
-        SeasonLayer(theme)
-        AnimationLayer(theme)
-        LightLayer(theme)   // ← moved last: tints every layer beneath it
+        AnimationLayer(theme) {
+            StarLayer(theme)
+            CloudLayer(theme)
+            SunLayer(theme)
+            MoonLayer(theme)
+            WeatherLayer(theme)
+            SeasonLayer(theme)
+        }
+        LightLayer(theme)   // outside AnimationLayer so light always tints everything
     }
 }

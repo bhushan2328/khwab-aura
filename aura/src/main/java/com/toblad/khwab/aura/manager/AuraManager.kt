@@ -11,76 +11,57 @@ import com.toblad.khwab.aura.model.WeatherState
  * Central controller for the Khwab Aura module.
  *
  * All Aura processing is delegated to AuraEngine.
+ *
+ * Thread safety: all mutable fields are @Volatile so reads from the UI
+ * thread and writes from weather-callback coroutines never observe torn state.
+ * The three fields (state, config, theme) are updated together under a
+ * synchronized lock so they are always mutually consistent.
  */
 class AuraManager : AuraApi {
 
     private val engine = AuraEngine()
 
-    private var state = AuraState.OFF
+    private val lock = Any()
 
-    private var config = AuraConfig()
+    @Volatile private var state  = AuraState.OFF
+    @Volatile private var config = AuraConfig()
+    @Volatile private var theme  = engine.generateTheme(config)
 
-    private var theme = engine.generateTheme(config)
-
-    override fun activate() {
-
-        state = AuraState.ACTIVE
-
+    override fun activate() = synchronized(lock) {
+        state  = AuraState.ACTIVE
         config = config.copy(enabled = true)
-
-        theme = engine.generateTheme(config)
+        theme  = engine.generateTheme(config)
     }
 
-    override fun deactivate() {
-
-        state = AuraState.OFF
-
+    override fun deactivate() = synchronized(lock) {
+        state  = AuraState.OFF
         config = config.copy(enabled = false)
-
-        theme = engine.generateTheme(config)
+        theme  = engine.generateTheme(config)
     }
 
     override fun toggle() {
-
-        if (isActive()) {
-            deactivate()
-        } else {
-            activate()
-        }
+        if (isActive()) deactivate() else activate()
     }
 
-    override fun isActive(): Boolean {
-        return state == AuraState.ACTIVE
-    }
+    override fun isActive(): Boolean = state == AuraState.ACTIVE
 
-    override fun getState(): AuraState {
-        return state
-    }
+    override fun getState(): AuraState = state
 
-    override fun getTheme(): AuraTheme {
-        return theme
-    }
+    override fun getTheme(): AuraTheme = theme
 
-    override fun getConfig(): AuraConfig {
-        return config
-    }
+    override fun getConfig(): AuraConfig = config
 
-    override fun updateConfig(config: AuraConfig) {
-
+    override fun updateConfig(config: AuraConfig) = synchronized(lock) {
         this.config = config
-
-        theme = engine.generateTheme(config)
+        theme = engine.generateTheme(this.config)
     }
 
-    override fun updateWeather(weather: WeatherState) {
-
+    override fun updateWeather(weather: WeatherState) = synchronized(lock) {
         engine.updateWeather(weather)
-
         theme = engine.generateTheme(config)
     }
 
-    override fun refresh() {
-
+    override fun refresh() = synchronized(lock) {
         theme = engine.refresh(config)
     }
 }
