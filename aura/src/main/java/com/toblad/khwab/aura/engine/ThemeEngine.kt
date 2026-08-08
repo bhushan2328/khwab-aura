@@ -15,7 +15,9 @@ class ThemeEngine {
         enabled: Boolean,
         moonPhase: MoonStyle = MoonStyle.FULL,
         season: Season = Season.SUMMER,
-        stormIntensity: Float = 0.5f
+        stormIntensity: Float = 0.5f,
+        sunriseHour: Float? = null,
+        sunsetHour: Float? = null
     ): AuraTheme {
 
         val profile = createProfile(timePhase, weatherState, moonPhase, season, stormIntensity)
@@ -25,7 +27,10 @@ class ThemeEngine {
             timePhase = timePhase,
             weatherState = weatherState,
             profile = profile,
-            enabled = enabled
+            enabled = enabled,
+            sunriseHour = sunriseHour,
+            sunsetHour = sunsetHour,
+            isSolarAccurate = sunriseHour != null && sunsetHour != null
         )
     }
 
@@ -38,15 +43,15 @@ class ThemeEngine {
     ): ThemeProfile {
 
         val sky = when (timePhase) {
-            TimePhase.PRE_DAWN -> SkyStyle.PRE_DAWN
-            TimePhase.SUNRISE -> SkyStyle.SUNRISE
-            TimePhase.MORNING -> SkyStyle.MORNING
-            TimePhase.NOON -> SkyStyle.NOON
+            TimePhase.PRE_DAWN  -> SkyStyle.DAWN      // dark-navy → burgundy → warm-peach: true pre-dawn
+            TimePhase.SUNRISE   -> SkyStyle.SUNRISE    // golden → coral → pink: full sunrise burst
+            TimePhase.MORNING   -> SkyStyle.MORNING    // light blue + warm horizon
+            TimePhase.NOON      -> SkyStyle.NOON
             TimePhase.AFTERNOON -> SkyStyle.AFTERNOON
-            TimePhase.SUNSET -> SkyStyle.SUNSET
-            TimePhase.EVENING -> SkyStyle.EVENING
-            TimePhase.NIGHT -> SkyStyle.NIGHT
-            TimePhase.MIDNIGHT -> SkyStyle.MIDNIGHT
+            TimePhase.SUNSET    -> SkyStyle.SUNSET
+            TimePhase.EVENING   -> SkyStyle.EVENING
+            TimePhase.NIGHT     -> SkyStyle.NIGHT
+            TimePhase.MIDNIGHT  -> SkyStyle.MIDNIGHT
         }
 
         val sun = when (timePhase) {
@@ -100,9 +105,15 @@ class ThemeEngine {
         }
 
         val animation = when {
-            // Daytime clear sky has a gentle breeze — more dynamic than dead CALM
+            // Clear sky wind budget by time of day:
+            //   MORNING   → BREEZY (0.25) — fresh morning air
+            //   NOON      → NORMAL (0.40) — peak convective wind from surface heating
+            //   AFTERNOON → BREEZY (0.25) — wind eases as heating decreases
+            // Night/pre-dawn stays CALM.
+            weatherState == WeatherState.CLEAR && timePhase == TimePhase.NOON ->
+                AnimationStyle.NORMAL
             weatherState == WeatherState.CLEAR &&
-                    (timePhase == TimePhase.NOON || timePhase == TimePhase.AFTERNOON) ->
+                    (timePhase == TimePhase.MORNING || timePhase == TimePhase.AFTERNOON) ->
                 AnimationStyle.BREEZY
             weatherState == WeatherState.CLEAR -> AnimationStyle.CALM
             weatherState == WeatherState.CLOUDY -> AnimationStyle.NORMAL

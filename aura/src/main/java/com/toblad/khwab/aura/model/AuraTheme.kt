@@ -41,5 +41,25 @@ data class AuraTheme(
     /**
      * Indicates whether Aura is enabled.
      */
-    val enabled: Boolean = false
+    val enabled: Boolean = false,
+
+    /**
+     * Real sunrise time as a decimal hour (e.g. 6.5 = 06:30),
+     * computed from the device's location via SolarCalculator.
+     * Null when no location is available (fixed phase schedule is used).
+     */
+    val sunriseHour: Float? = null,
+
+    /**
+     * Real sunset time as a decimal hour.
+     * Null when no location is available.
+     */
+    val sunsetHour: Float? = null,
+
+    /**
+     * True when the current TimePhase was derived from real
+     * GPS-based solar data; false when the fixed approximate
+     * schedule was used as a fallback.
+     */
+    val isSolarAccurate: Boolean = false
 )

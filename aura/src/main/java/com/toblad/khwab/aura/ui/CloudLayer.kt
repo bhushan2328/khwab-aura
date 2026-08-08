@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import com.toblad.khwab.aura.model.AuraTheme
 import com.toblad.khwab.aura.model.CloudStyle
 import com.toblad.khwab.aura.model.TimePhase
+import com.toblad.khwab.aura.world.TimeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.random.Random
@@ -55,15 +56,28 @@ fun CloudLayer(theme: AuraTheme) {
     }
 
     // Cloud colour: storm/overcast have fixed dark/grey tints.
-    // For lighter styles the tint shifts with the time of day —
-    // warm orange-pink at dawn/sunset, white at midday.
+    // For lighter styles the tint shifts with the time of day.
+    // MORNING is split by actual clock hour:
+    //   early morning (sunrise + ≤08:00) → warm pink-orange
+    //   late morning  (08:00–12:00)      → transitions to white
+    val currentHour = remember { TimeState.now().hour + TimeState.now().minute / 60f }
     val cloudColor = when {
         style == CloudStyle.STORM    -> Color(0xCC9E9E9E)
         style == CloudStyle.OVERCAST -> Color(0xDDEEEEEE)
         else -> when (theme.timePhase) {
             TimePhase.PRE_DAWN  -> Color(0xDDB0C4DE)  // cool blue-grey
-            TimePhase.SUNRISE,
-            TimePhase.MORNING   -> Color(0xEEFFCCBB)  // warm pink-orange
+            TimePhase.SUNRISE   -> Color(0xEEFFCCBB)  // warm pink-orange
+            TimePhase.MORNING   -> {
+                // Interpolate from warm pink (06:00) to pure white (10:00+)
+                val t = ((currentHour - 6f) / 4f).coerceIn(0f, 1f)
+                val warmR = 0xFF / 255f; val warmG = 0xCC / 255f; val warmB = 0xBB / 255f
+                Color(
+                    red   = warmR + (1f - warmR) * t,
+                    green = warmG + (1f - warmG) * t,
+                    blue  = warmB + (1f - warmB) * t,
+                    alpha = 0xEE / 255f
+                )
+            }
             TimePhase.NOON      -> Color(0xEEFFFFFF)  // pure white
             TimePhase.AFTERNOON -> Color(0xEEFFF8E1)  // slightly golden
             TimePhase.SUNSET    -> Color(0xEEFFAA80)  // deep warm orange

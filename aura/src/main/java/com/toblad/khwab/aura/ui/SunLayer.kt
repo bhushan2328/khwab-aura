@@ -44,8 +44,11 @@ fun SunLayer(theme: AuraTheme) {
     // SunEngine is stateless — create once, reuse forever
     val engine = remember { SunEngine() }
 
+    val sunriseHour = theme.sunriseHour
+    val sunsetHour  = theme.sunsetHour
+
     var position by remember {
-        mutableStateOf(engine.calculate(TimeState.now()))
+        mutableStateOf(engine.calculate(TimeState.now(), sunriseHour, sunsetHour))
     }
 
     // Slowly rotating ray angle (degrees) — full rotation every ~80 s
@@ -53,7 +56,7 @@ fun SunLayer(theme: AuraTheme) {
 
     LaunchedEffect(isResumed) {
         if (!isResumed) return@LaunchedEffect
-        position = engine.calculate(TimeState.now())
+        position = engine.calculate(TimeState.now(), sunriseHour, sunsetHour)
         while (true) {
             delay(50L)
             // Rotate 0.05°/tick × 20 fps ≈ 1°/s → full revolution in ~6 min
@@ -66,7 +69,7 @@ fun SunLayer(theme: AuraTheme) {
         if (!isResumed) return@LaunchedEffect
         while (true) {
             delay(30_000L)
-            position = engine.calculate(TimeState.now())
+            position = engine.calculate(TimeState.now(), sunriseHour, sunsetHour)
         }
     }
 
@@ -88,9 +91,15 @@ fun SunLayer(theme: AuraTheme) {
 
         val radius = size.minDimension * 0.08f
 
-        // Low-angle sun hugs the horizon (y = 82% of height, matching bloom ellipse).
-        // High-angle sun uses SunEngine position but limited to upper 55% of sky.
-        val center = if (isLowAngle) {
+        // When solar data is available, SunEngine already places the sun on the correct
+        // arc (y ≈ 0.82 at horizon, y ≈ 0.05 at zenith). For the circle fallback we
+        // keep the previous clamping logic so it still looks reasonable.
+        val center = if (theme.isSolarAccurate) {
+            Offset(
+                x = size.width  * position.x,
+                y = size.height * position.y
+            )
+        } else if (isLowAngle) {
             Offset(
                 x = size.width * position.x,
                 y = size.height * 0.82f            // horizon line
@@ -132,6 +141,28 @@ fun SunLayer(theme: AuraTheme) {
             radius = radius * 2.2f,
             center = center
         )
+
+        // ── High-sun pulsing wide corona (NOON / AFTERNOON) ──────────────────
+        // A wide, very-low-alpha halo slowly breathes in/out using the
+        // existing rayAngle ticker (no extra coroutine needed).
+        val isHighSun = sunStyle == SunStyle.NOON || sunStyle == SunStyle.AFTERNOON
+        if (isHighSun) {
+            val pulse = (kotlin.math.sin(Math.toRadians(rayAngle * 3.0)) + 1.0).toFloat() / 2f
+            val pulseRadius = radius * (3.5f + pulse * 1.0f)
+            val pulseAlpha  = 0.06f + pulse * 0.05f
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        coreColor.copy(alpha = pulseAlpha),
+                        Color.Transparent
+                    ),
+                    center = center,
+                    radius = pulseRadius
+                ),
+                radius = pulseRadius,
+                center = center
+            )
+        }
 
         // ── Light-ray spokes (DAWN / SUNSET) — slowly rotating ───────────────
         // 12 tapered lines radiate from the sun centre at low-angle phases.

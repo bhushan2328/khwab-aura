@@ -151,7 +151,9 @@ class AuraEngine(
             enabled = config.enabled,
             moonPhase = moonPhase,
             season = season,
-            stormIntensity = config.stormIntensity
+            stormIntensity = config.stormIntensity,
+            sunriseHour = sunTimes?.sunriseHour,
+            sunsetHour = sunTimes?.sunsetHour
         )
     }
 

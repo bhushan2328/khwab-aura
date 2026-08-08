@@ -59,10 +59,26 @@ fun BirdLayer(theme: AuraTheme) {
 
     val isResumed by rememberIsResumed()
 
-    // Build 2 small V-flocks of 2–3 birds each (total 5–6 birds)
-    val birds = remember {
+    // Flock count scales with season:
+    //   AUTUMN = 3 flocks (migration season, bigger groups)
+    //   SUMMER = 2 flocks (normal daytime activity)
+    //   SPRING = 2 flocks + extra solo birds (dawn dispersal)
+    //   WINTER = 1 flock (few birds, most have migrated)
+    val flockCount = when (theme.profile.season) {
+        com.toblad.khwab.aura.model.Season.AUTUMN -> 3
+        com.toblad.khwab.aura.model.Season.SPRING -> 2
+        com.toblad.khwab.aura.model.Season.WINTER -> 1
+        else                                       -> 2   // SUMMER
+    }
+    val extraSoloCount = when (theme.profile.season) {
+        com.toblad.khwab.aura.model.Season.AUTUMN -> 2   // migrating stragglers
+        com.toblad.khwab.aura.model.Season.SPRING -> 2   // dawn dispersal
+        else                                       -> 1
+    }
+
+    val birds = remember(flockCount, extraSoloCount) {
         mutableStateListOf<Bird>().apply {
-            repeat(2) { flockIdx ->
+            repeat(flockCount) { flockIdx ->
                 val flockX     = Random.nextFloat()
                 val flockY     = Random.nextFloat() * 0.30f + 0.04f
                 val baseSpeed  = 0.00016f + Random.nextFloat() * 0.00012f
@@ -92,18 +108,20 @@ fun BirdLayer(theme: AuraTheme) {
                     ))
                 }
             }
-            // One lone soaring bird
-            add(Bird(
-                x          = Random.nextFloat(),
-                y          = Random.nextFloat() * 0.25f + 0.05f,
-                speed      = 0.00010f + Random.nextFloat() * 0.00008f,
-                size       = 1.1f + Random.nextFloat() * 0.3f,
-                bob        = Random.nextFloat() * 6.28f,
-                bobRate    = 0.015f,
-                bobAmp     = 3.0f,
-                flapPhase  = Random.nextFloat() * 6.28f,
-                flapRate   = 0.05f   // soaring = slow lazy flap
-            ))
+            // Solo soaring birds — count varies by season
+            repeat(extraSoloCount) {
+                add(Bird(
+                    x          = Random.nextFloat(),
+                    y          = Random.nextFloat() * 0.25f + 0.05f,
+                    speed      = 0.00010f + Random.nextFloat() * 0.00008f,
+                    size       = 1.1f + Random.nextFloat() * 0.3f,
+                    bob        = Random.nextFloat() * 6.28f,
+                    bobRate    = 0.015f,
+                    bobAmp     = 3.0f,
+                    flapPhase  = Random.nextFloat() * 6.28f,
+                    flapRate   = 0.05f   // soaring = slow lazy flap
+                ))
+            }
         }
     }
 

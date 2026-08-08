@@ -67,6 +67,13 @@ fun SeasonLayer(theme: AuraTheme) {
             theme.timePhase == TimePhase.MIDNIGHT ||
             theme.timePhase == TimePhase.EVENING
 
+    val isDaytime = theme.timePhase == TimePhase.MORNING ||
+            theme.timePhase == TimePhase.NOON ||
+            theme.timePhase == TimePhase.AFTERNOON
+
+    val isClear = theme.weatherState == com.toblad.khwab.aura.model.WeatherState.CLEAR ||
+            theme.weatherState == com.toblad.khwab.aura.model.WeatherState.CLOUDY
+
     val isResumed by rememberIsResumed()
 
     // Wind intensity from AnimationLayer — scales petal/leaf horizontal drift
@@ -78,6 +85,9 @@ fun SeasonLayer(theme: AuraTheme) {
 
         season == Season.AUTUMN && !isNight ->
             FallingBits(color = Color(0xFFD08A3E), count = 24, isResumed = isResumed, windIntensity = windIntensity)
+
+        season == Season.SUMMER && isDaytime && isClear ->
+            SummerPollen(count = 8, isResumed = isResumed, windIntensity = windIntensity)
 
         season == Season.SUMMER && isNight ->
             Fireflies(count = 18, isResumed = isResumed)
@@ -245,6 +255,84 @@ private fun WinterFrost(count: Int, isResumed: Boolean) {
                     )
                 }
             }
+        }
+    }
+}
+
+// Mutable pollen/dandelion seed particle
+private class PollenBit(
+    var x: Float,
+    var y: Float,
+    val riseSpeed: Float,   // upward drift per tick (positive = up the screen, so we subtract)
+    val drift: Float,       // horizontal sway per tick
+    var wobble: Float,      // wobble phase accumulator
+    val wobbleRate: Float,
+    val wobbleAmp: Float,   // horizontal wobble amplitude (px)
+    val size: Float         // rendered radius (px)
+)
+
+/**
+ * Slow-rising luminous specks simulating pollen or dandelion seeds
+ * drifting upward on a warm summer day.
+ *
+ * Shown only during SUMMER clear/cloudy daytime (MORNING, NOON, AFTERNOON).
+ * A small count (8) keeps it subtle — just enough to signal summer heat
+ * without competing with the sky.
+ */
+@Composable
+private fun SummerPollen(count: Int, isResumed: Boolean, windIntensity: Float = 0f) {
+
+    val bits = remember {
+        mutableStateListOf<PollenBit>().apply {
+            repeat(count) {
+                add(
+                    PollenBit(
+                        x          = Random.nextFloat(),
+                        y          = Random.nextFloat(),
+                        riseSpeed  = Random.nextFloat() * 0.0006f + 0.0003f,
+                        drift      = Random.nextFloat() * 0.0004f - 0.0002f,
+                        wobble     = Random.nextFloat() * (2f * PI.toFloat()),
+                        wobbleRate = 0.02f + Random.nextFloat() * 0.015f,
+                        wobbleAmp  = 3f + Random.nextFloat() * 4f,
+                        size       = 2.5f + Random.nextFloat() * 2f
+                    )
+                )
+            }
+        }
+    }
+
+    LaunchedEffect(isResumed) {
+        if (!isResumed) return@LaunchedEffect
+        while (isActive) {
+            val windDrift = windIntensity * 0.0005f
+            for (bit in bits) {
+                bit.y      -= bit.riseSpeed            // rise upward
+                bit.x      += bit.drift + windDrift    // gentle sway + wind
+                bit.wobble += bit.wobbleRate
+                if (bit.y < -0.05f) { bit.y = 1.05f; bit.x = Random.nextFloat() }
+                if (bit.x > 1.05f)   bit.x = -0.05f
+                if (bit.x < -0.05f)  bit.x = 1.05f
+            }
+            delay(30L)
+        }
+    }
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        for (bit in bits) {
+            val cx = bit.x * size.width + sin(bit.wobble) * bit.wobbleAmp
+            val cy = bit.y * size.height
+            // Soft glowing dot — warm golden-white, semi-transparent
+            drawCircle(
+                color  = Color(0xFFFFF9C4).copy(alpha = 0.55f),
+                radius = bit.size,
+                center = Offset(cx, cy)
+            )
+            // Bright core
+            drawCircle(
+                color  = Color.White.copy(alpha = 0.80f),
+                radius = bit.size * 0.45f,
+                center = Offset(cx, cy)
+            )
         }
     }
 }
