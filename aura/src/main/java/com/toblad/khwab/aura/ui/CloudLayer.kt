@@ -12,6 +12,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import com.toblad.khwab.aura.model.AuraTheme
 import com.toblad.khwab.aura.model.CloudStyle
+import com.toblad.khwab.aura.model.TimePhase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.random.Random
@@ -52,11 +53,23 @@ fun CloudLayer(theme: AuraTheme) {
         CloudStyle.STORM     -> 13
     }
 
-    // Storm clouds are darker, overcast are grey-white
-    val cloudColor = when (style) {
-        CloudStyle.STORM    -> Color(0xCC9E9E9E)
-        CloudStyle.OVERCAST -> Color(0xDDEEEEEE)
-        else                -> Color(0xEEFFFFFF)
+    // Cloud colour: storm/overcast have fixed dark/grey tints.
+    // For lighter styles the tint shifts with the time of day —
+    // warm orange-pink at dawn/sunset, white at midday.
+    val cloudColor = when {
+        style == CloudStyle.STORM    -> Color(0xCC9E9E9E)
+        style == CloudStyle.OVERCAST -> Color(0xDDEEEEEE)
+        else -> when (theme.timePhase) {
+            TimePhase.PRE_DAWN  -> Color(0xDDB0C4DE)  // cool blue-grey
+            TimePhase.SUNRISE,
+            TimePhase.MORNING   -> Color(0xEEFFCCBB)  // warm pink-orange
+            TimePhase.NOON      -> Color(0xEEFFFFFF)  // pure white
+            TimePhase.AFTERNOON -> Color(0xEEFFF8E1)  // slightly golden
+            TimePhase.SUNSET    -> Color(0xEEFFAA80)  // deep warm orange
+            TimePhase.EVENING   -> Color(0xDDE8EAF6)  // cool violet-grey
+            TimePhase.NIGHT,
+            TimePhase.MIDNIGHT  -> Color(0xBBB0BEC5)  // dim grey-blue
+        }
     }
 
     val clouds = remember(style) {
