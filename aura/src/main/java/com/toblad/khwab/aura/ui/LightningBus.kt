@@ -100,4 +100,14 @@ object LightningBus {
             }
         }
     }
+
+    /**
+     * Immediately emits one lightning flash event on [flashes].
+     *
+     * Intended for debug/testing use only — allows a single manual
+     * flash without affecting the running ticker or storm state.
+     */
+    fun triggerNow() {
+        scope.launch { _flashes.emit(Unit) }
+    }
 }
