@@ -50,20 +50,23 @@ fun WeatherLayer(theme: AuraTheme) {
 
     val isResumed by rememberIsResumed()
 
+    val animationsEnabled = theme.animationsEnabled
+
     when (effect) {
         WeatherEffectStyle.RAIN,
         WeatherEffectStyle.STORM -> {
             AnimatedRain(
                 intense = isStorm,
                 intensity = theme.profile.stormIntensity,
-                isResumed = isResumed
+                isResumed = isResumed,
+                animationsEnabled = animationsEnabled
             )
         }
         WeatherEffectStyle.SNOW -> {
-            AnimatedSnow(isResumed = isResumed)
+            AnimatedSnow(isResumed = isResumed, animationsEnabled = animationsEnabled)
         }
         WeatherEffectStyle.FOG -> {
-            AnimatedFog(isResumed = isResumed)
+            AnimatedFog(isResumed = isResumed, animationsEnabled = animationsEnabled)
         }
         else -> Unit
     }
@@ -74,7 +77,7 @@ fun WeatherLayer(theme: AuraTheme) {
 }
 
 @Composable
-private fun AnimatedRain(intense: Boolean, intensity: Float, isResumed: Boolean) {
+private fun AnimatedRain(intense: Boolean, intensity: Float, isResumed: Boolean, animationsEnabled: Boolean = true) {
 
     val severity = intensity.coerceIn(0f, 1f)
     val baseCount = if (intense) 90 else 45
@@ -99,8 +102,8 @@ private fun AnimatedRain(intense: Boolean, intensity: Float, isResumed: Boolean)
         }
     }
 
-    LaunchedEffect(intense, dropCount, isResumed) {
-        if (!isResumed) return@LaunchedEffect
+    LaunchedEffect(intense, dropCount, isResumed, animationsEnabled) {
+        if (!isResumed || !animationsEnabled) return@LaunchedEffect
         while (isActive) {
             for (drop in drops) {
                 drop.y += drop.speed * 0.02f
@@ -129,7 +132,7 @@ private fun AnimatedRain(intense: Boolean, intensity: Float, isResumed: Boolean)
 }
 
 @Composable
-private fun AnimatedSnow(isResumed: Boolean) {
+private fun AnimatedSnow(isResumed: Boolean, animationsEnabled: Boolean = true) {
 
     val flakes = remember {
         mutableStateListOf<SnowFlake>().apply {
@@ -146,8 +149,8 @@ private fun AnimatedSnow(isResumed: Boolean) {
         }
     }
 
-    LaunchedEffect(isResumed) {
-        if (!isResumed) return@LaunchedEffect
+    LaunchedEffect(isResumed, animationsEnabled) {
+        if (!isResumed || !animationsEnabled) return@LaunchedEffect
         while (isActive) {
             for (flake in flakes) {
                 flake.y += flake.speed * 0.01f
@@ -175,7 +178,7 @@ private fun AnimatedSnow(isResumed: Boolean) {
 private class FogBand(var x: Float, val y: Float, val alpha: Float, val speed: Float, val width: Float)
 
 @Composable
-private fun AnimatedFog(isResumed: Boolean) {
+private fun AnimatedFog(isResumed: Boolean, animationsEnabled: Boolean = true) {
 
     val bands = remember {
         mutableStateListOf<FogBand>().apply {
@@ -191,8 +194,8 @@ private fun AnimatedFog(isResumed: Boolean) {
         }
     }
 
-    LaunchedEffect(isResumed) {
-        if (!isResumed) return@LaunchedEffect
+    LaunchedEffect(isResumed, animationsEnabled) {
+        if (!isResumed || !animationsEnabled) return@LaunchedEffect
         while (isActive) {
             for (band in bands) {
                 band.x += band.speed

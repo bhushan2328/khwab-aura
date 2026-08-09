@@ -36,7 +36,9 @@ fun AnimationLayer(
     theme: AuraTheme,
     content: @Composable () -> Unit = {}
 ) {
-    val targetWind = when (theme.profile.animation) {
+    // When animations are disabled globally, expose zero wind so child layers
+    // compute minimal movement and their own loops respect isResumed=false logic.
+    val targetWind = if (!theme.animationsEnabled) 0.00f else when (theme.profile.animation) {
         AnimationStyle.NONE   -> 0.00f
         AnimationStyle.CALM   -> 0.10f
         AnimationStyle.BREEZY -> 0.25f

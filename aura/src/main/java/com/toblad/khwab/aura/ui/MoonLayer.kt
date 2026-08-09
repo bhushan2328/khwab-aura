@@ -49,13 +49,11 @@ fun MoonLayer(theme: AuraTheme) {
     }
 
     LaunchedEffect(isResumed) {
-
         if (!isResumed) return@LaunchedEffect
-
         position = moonPosition(engine)
-
         while (true) {
             delay(30_000L)
+            // Moon position update always runs (position correctness, not animation)
             position = moonPosition(engine)
         }
     }

@@ -79,28 +79,30 @@ fun SeasonLayer(theme: AuraTheme) {
     // Wind intensity from AnimationLayer — scales petal/leaf horizontal drift
     val windIntensity = LocalWindIntensity.current
 
+    val animationsEnabled = theme.animationsEnabled
+
     when {
         season == Season.SPRING && !isNight ->
-            FallingBits(color = Color(0xFFFFC1E3), count = 24, isResumed = isResumed, windIntensity = windIntensity)
+            FallingBits(color = Color(0xFFFFC1E3), count = 24, isResumed = isResumed, windIntensity = windIntensity, animationsEnabled = animationsEnabled)
 
         season == Season.AUTUMN && !isNight ->
-            FallingBits(color = Color(0xFFD08A3E), count = 24, isResumed = isResumed, windIntensity = windIntensity)
+            FallingBits(color = Color(0xFFD08A3E), count = 24, isResumed = isResumed, windIntensity = windIntensity, animationsEnabled = animationsEnabled)
 
         season == Season.SUMMER && isDaytime && isClear ->
-            SummerPollen(count = 8, isResumed = isResumed, windIntensity = windIntensity)
+            SummerPollen(count = 8, isResumed = isResumed, windIntensity = windIntensity, animationsEnabled = animationsEnabled)
 
         season == Season.SUMMER && isNight ->
-            Fireflies(count = 18, isResumed = isResumed)
+            Fireflies(count = 18, isResumed = isResumed, animationsEnabled = animationsEnabled)
 
         season == Season.WINTER ->
-            WinterFrost(count = 30, isResumed = isResumed)
+            WinterFrost(count = 30, isResumed = isResumed, animationsEnabled = animationsEnabled)
 
         else -> Unit
     }
 }
 
 @Composable
-private fun FallingBits(color: Color, count: Int, isResumed: Boolean, windIntensity: Float = 0f) {
+private fun FallingBits(color: Color, count: Int, isResumed: Boolean, windIntensity: Float = 0f, animationsEnabled: Boolean = true) {
 
     val bits = remember {
         mutableStateListOf<FallingBit>().apply {
@@ -121,8 +123,8 @@ private fun FallingBits(color: Color, count: Int, isResumed: Boolean, windIntens
         }
     }
 
-    LaunchedEffect(isResumed) {
-        if (!isResumed) return@LaunchedEffect
+    LaunchedEffect(isResumed, animationsEnabled) {
+        if (!isResumed || !animationsEnabled) return@LaunchedEffect
         while (isActive) {
             // Wind scales horizontal drift — calm = natural gentle drift, storm = swept sideways
             val windDrift = windIntensity * 0.0008f
@@ -159,7 +161,7 @@ private fun FallingBits(color: Color, count: Int, isResumed: Boolean, windIntens
 }
 
 @Composable
-private fun Fireflies(count: Int, isResumed: Boolean) {
+private fun Fireflies(count: Int, isResumed: Boolean, animationsEnabled: Boolean = true) {
 
     val flies = remember {
         mutableStateListOf<Firefly>().apply {
@@ -175,8 +177,8 @@ private fun Fireflies(count: Int, isResumed: Boolean) {
         }
     }
 
-    LaunchedEffect(isResumed) {
-        if (!isResumed) return@LaunchedEffect
+    LaunchedEffect(isResumed, animationsEnabled) {
+        if (!isResumed || !animationsEnabled) return@LaunchedEffect
         while (isActive) {
             for (fly in flies) {
                 fly.x     = (fly.x + (Random.nextFloat() - 0.5f) * 0.002f).coerceIn(0f, 1f)
@@ -200,7 +202,7 @@ private fun Fireflies(count: Int, isResumed: Boolean) {
 }
 
 @Composable
-private fun WinterFrost(count: Int, isResumed: Boolean) {
+private fun WinterFrost(count: Int, isResumed: Boolean, animationsEnabled: Boolean = true) {
 
     val bits = remember {
         mutableStateListOf<FrostBit>().apply {
@@ -219,8 +221,8 @@ private fun WinterFrost(count: Int, isResumed: Boolean) {
         }
     }
 
-    LaunchedEffect(isResumed) {
-        if (!isResumed) return@LaunchedEffect
+    LaunchedEffect(isResumed, animationsEnabled) {
+        if (!isResumed || !animationsEnabled) return@LaunchedEffect
         while (isActive) {
             for (bit in bits) {
                 bit.y    += bit.speed * 0.008f
@@ -280,7 +282,7 @@ private class PollenBit(
  * without competing with the sky.
  */
 @Composable
-private fun SummerPollen(count: Int, isResumed: Boolean, windIntensity: Float = 0f) {
+private fun SummerPollen(count: Int, isResumed: Boolean, windIntensity: Float = 0f, animationsEnabled: Boolean = true) {
 
     val bits = remember {
         mutableStateListOf<PollenBit>().apply {
@@ -301,8 +303,8 @@ private fun SummerPollen(count: Int, isResumed: Boolean, windIntensity: Float = 
         }
     }
 
-    LaunchedEffect(isResumed) {
-        if (!isResumed) return@LaunchedEffect
+    LaunchedEffect(isResumed, animationsEnabled) {
+        if (!isResumed || !animationsEnabled) return@LaunchedEffect
         while (isActive) {
             val windDrift = windIntensity * 0.0005f
             for (bit in bits) {

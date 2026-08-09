@@ -1,6 +1,7 @@
 package com.toblad.khwab.aura.engine
 
 import com.toblad.khwab.aura.model.*
+import com.toblad.khwab.aura.world.LightingState
 
 /**
  * Responsible for converting the current
@@ -17,7 +18,9 @@ class ThemeEngine {
         season: Season = Season.SUMMER,
         stormIntensity: Float = 0.5f,
         sunriseHour: Float? = null,
-        sunsetHour: Float? = null
+        sunsetHour: Float? = null,
+        lightingState: LightingState = LightingState(),
+        animationsEnabled: Boolean = true
     ): AuraTheme {
 
         val profile = createProfile(timePhase, weatherState, moonPhase, season, stormIntensity)
@@ -30,7 +33,9 @@ class ThemeEngine {
             enabled = enabled,
             sunriseHour = sunriseHour,
             sunsetHour = sunsetHour,
-            isSolarAccurate = sunriseHour != null && sunsetHour != null
+            isSolarAccurate = sunriseHour != null && sunsetHour != null,
+            lighting = lightingState,
+            animationsEnabled = animationsEnabled
         )
     }
 

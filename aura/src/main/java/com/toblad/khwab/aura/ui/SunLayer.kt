@@ -54,8 +54,8 @@ fun SunLayer(theme: AuraTheme) {
     // Slowly rotating ray angle (degrees) — full rotation every ~80 s
     var rayAngle by remember { mutableStateOf(0f) }
 
-    LaunchedEffect(isResumed) {
-        if (!isResumed) return@LaunchedEffect
+    LaunchedEffect(isResumed, theme.animationsEnabled) {
+        if (!isResumed || !theme.animationsEnabled) return@LaunchedEffect
         position = engine.calculate(TimeState.now(), sunriseHour, sunsetHour)
         while (true) {
             delay(50L)
@@ -69,6 +69,7 @@ fun SunLayer(theme: AuraTheme) {
         if (!isResumed) return@LaunchedEffect
         while (true) {
             delay(30_000L)
+            // Solar position update runs even when animations are paused to keep position correct
             position = engine.calculate(TimeState.now(), sunriseHour, sunsetHour)
         }
     }

@@ -125,8 +125,8 @@ fun BirdLayer(theme: AuraTheme) {
         }
     }
 
-    LaunchedEffect(isResumed) {
-        if (!isResumed) return@LaunchedEffect
+    LaunchedEffect(isResumed, theme.animationsEnabled) {
+        if (!isResumed || !theme.animationsEnabled) return@LaunchedEffect
         while (isActive) {
             for (bird in birds) {
                 bird.x         -= bird.speed

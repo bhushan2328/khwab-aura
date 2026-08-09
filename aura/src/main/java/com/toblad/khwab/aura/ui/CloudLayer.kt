@@ -116,8 +116,8 @@ fun CloudLayer(theme: AuraTheme) {
     // Read wind from AnimationLayer's CompositionLocal — scales cloud speed
     val windIntensity = LocalWindIntensity.current
 
-    LaunchedEffect(style, isResumed) {
-        if (!isResumed) return@LaunchedEffect
+    LaunchedEffect(style, isResumed, theme.animationsEnabled) {
+        if (!isResumed || !theme.animationsEnabled) return@LaunchedEffect
         while (isActive) {
             // Base speed + wind bonus (storm = 3× base drift)
             val speedMult = 1f + windIntensity * 2.0f

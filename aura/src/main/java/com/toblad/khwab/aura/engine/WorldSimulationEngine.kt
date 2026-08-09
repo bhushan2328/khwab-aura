@@ -10,20 +10,20 @@ import com.toblad.khwab.aura.world.AuraWorld
  *
  * Update order:
  *
- * Time
- *   ?
- * Weather
- *   ?
- * Lighting
+ * Time → Weather → Lighting
  *
  * A new immutable AuraWorld instance is returned
  * after every simulation step.
+ *
+ * The [weatherEngine] should be the same instance used by [AuraEngine]
+ * so that updateWeather() calls are visible to both the theme-generation
+ * path and the simulation step.
  */
 class WorldSimulationEngine(
 
     private val timeEngine: TimeEngine = TimeEngine(),
 
-    private val weatherEngine: WeatherEngine = WeatherEngine(),
+    internal val weatherEngine: WeatherEngine = WeatherEngine(),
 
     private val lightingEngine: LightingEngine = LightingEngine()
 

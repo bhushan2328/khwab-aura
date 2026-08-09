@@ -7,21 +7,22 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.toblad.khwab.aura.engine.LightingEngine
 import com.toblad.khwab.aura.model.AmbientLightStyle
 import com.toblad.khwab.aura.model.AuraTheme
-import com.toblad.khwab.aura.world.TimeState
 
 /**
  * Renders ambient lighting over the scene.
  *
  * Two contributions are blended together:
  *  1. A time-of-day colour tint (e.g. warm orange at sunset, deep blue at night)
- *  2. A darkening overlay whose alpha is derived from LightingEngine intensity,
+ *  2. A darkening overlay whose alpha is derived from [theme.lighting] intensity,
  *     so overcast, rainy and stormy scenes are visibly darker than clear ones.
+ *
+ * The [LightingState] is computed by [LightingEngine] inside [AuraEngine] — this
+ * composable reads it from [AuraTheme] and renders it. It does NOT independently
+ * recalculate lighting or create its own [LightingEngine].
  *
  * Both transitions are animated with a 4-second cross-fade.
  */
@@ -49,18 +50,11 @@ fun LightLayer(theme: AuraTheme) {
         label        = "ambientTint"
     )
 
-    // ── 2. Intensity darkening from LightingEngine ────────────────────────────
-    // LightingEngine computes how bright the scene is (0 = very dark, 1 = full sun).
+    // ── 2. Intensity darkening from authoritative LightingState ───────────────
+    // theme.lighting is computed by LightingEngine inside AuraEngine — not here.
     // We invert it to get a darkening alpha: bright sun → nearly zero darkening,
     // heavy storm → up to ~0.40 darkening.
-    val lightingEngine = remember { LightingEngine() }
-    val lightingState  = lightingEngine.update(
-        time    = TimeState.now(),
-        weather = theme.profile.weatherEffect.toWorldWeather()
-    )
-
-    // Clamp darkening to 0..0.40 — we don't want to black out the entire screen
-    val darkenAlpha = ((1f - lightingState.intensity) * 0.40f).coerceIn(0f, 0.40f)
+    val darkenAlpha = ((1f - theme.lighting.intensity) * 0.40f).coerceIn(0f, 0.40f)
 
     val darken by animateColorAsState(
         targetValue  = Color.Black.copy(alpha = darkenAlpha),
@@ -79,16 +73,4 @@ fun LightLayer(theme: AuraTheme) {
             .fillMaxSize()
             .background(darken)
     )
-}
-
-// Maps WeatherEffectStyle → world WeatherState for LightingEngine
-private fun com.toblad.khwab.aura.model.WeatherEffectStyle.toWorldWeather():
-        com.toblad.khwab.aura.model.WeatherState {
-    return when (this) {
-        com.toblad.khwab.aura.model.WeatherEffectStyle.NONE  -> com.toblad.khwab.aura.model.WeatherState.CLEAR
-        com.toblad.khwab.aura.model.WeatherEffectStyle.RAIN  -> com.toblad.khwab.aura.model.WeatherState.RAIN
-        com.toblad.khwab.aura.model.WeatherEffectStyle.SNOW  -> com.toblad.khwab.aura.model.WeatherState.SNOW
-        com.toblad.khwab.aura.model.WeatherEffectStyle.FOG   -> com.toblad.khwab.aura.model.WeatherState.FOG
-        com.toblad.khwab.aura.model.WeatherEffectStyle.STORM -> com.toblad.khwab.aura.model.WeatherState.STORM
-    }
 }

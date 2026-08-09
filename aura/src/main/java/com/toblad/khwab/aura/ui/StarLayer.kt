@@ -61,8 +61,8 @@ fun StarLayer(theme: AuraTheme) {
         }
     }
 
-    LaunchedEffect(isResumed) {
-        if (!isResumed) return@LaunchedEffect
+    LaunchedEffect(isResumed, theme.animationsEnabled) {
+        if (!isResumed || !theme.animationsEnabled) return@LaunchedEffect
         while (isActive) {
             for (star in stars) {
                 star.phase += 0.06f   // slow twinkle

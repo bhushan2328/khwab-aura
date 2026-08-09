@@ -3,9 +3,7 @@ package com.toblad.khwab.aura.engine
 import com.toblad.khwab.aura.model.AuraConfig
 import com.toblad.khwab.aura.model.AuraState
 import com.toblad.khwab.aura.model.AuraTheme
-import com.toblad.khwab.aura.particle.ParticleSystem
 import com.toblad.khwab.aura.renderer.RenderContext
-import com.toblad.khwab.aura.scene.SceneGraph
 import com.toblad.khwab.aura.season.SeasonEngine
 import com.toblad.khwab.aura.sun.MoonPhaseCalculator
 import com.toblad.khwab.aura.sun.SolarCalculator
@@ -18,24 +16,36 @@ import com.toblad.khwab.aura.world.TimeState
  * AuraEngine owns the current AuraWorld and
  * delegates simulation and rendering updates
  * to specialized engines.
+ *
+ * There is exactly ONE [WeatherEngine] instance shared between this class
+ * and the [WorldSimulationEngine] it creates — both always see the same
+ * weather state.
  */
 class AuraEngine(
-
-    private val worldSimulationEngine: WorldSimulationEngine = WorldSimulationEngine(),
-
-    private val sceneUpdater: SceneUpdater = SceneUpdater(),
-
-    private val animationUpdater: AnimationUpdater = AnimationUpdater(),
-
-    private val particleUpdater: ParticleUpdater = ParticleUpdater(),
 
     private val themeEngine: ThemeEngine = ThemeEngine(),
 
     private val timePhaseEngine: TimePhaseEngine = TimePhaseEngine(),
 
-    private val weatherEngine: WeatherEngine = WeatherEngine()
+    private val lightingEngine: LightingEngine = LightingEngine()
 
 ) {
+
+    /**
+     * Single authoritative weather engine — shared with WorldSimulationEngine
+     * so updateWeather() and the simulation step always see the same state.
+     */
+    internal val weatherEngine: WeatherEngine = WeatherEngine()
+
+    private val worldSimulationEngine: WorldSimulationEngine =
+        WorldSimulationEngine(weatherEngine = weatherEngine)
+
+    private val sceneUpdater: SceneUpdater = SceneUpdater()
+
+    private val animationUpdater: AnimationUpdater = AnimationUpdater()
+
+    private val particleUpdater: ParticleUpdater = ParticleUpdater()
+
 
     var state: EngineState = EngineState.STOPPED
         private set
@@ -116,13 +126,18 @@ class AuraEngine(
      * phase, moon appearance and season are derived from real
      * solar/lunar positions and hemisphere rather than fixed
      * defaults.
+     *
+     * [LightingState] is computed here — not inside Compose — so every
+     * consumer (LightLayer, theme logic) always agrees on lighting.
      */
     fun generateTheme(config: AuraConfig): AuraTheme {
 
         val auraState =
             if (config.enabled) AuraState.ACTIVE else AuraState.OFF
 
-        val time: TimeState = world?.time ?: TimeState.now()
+        // When autoTime is true (default), always use real device clock.
+        // When autoTime is false, use the simulated world time if available.
+        val time: TimeState = if (config.autoTime) TimeState.now() else (world?.time ?: TimeState.now())
 
         val sunTimes =
             if (config.latitude != null && config.longitude != null)
@@ -141,8 +156,16 @@ class AuraEngine(
 
         val season = SeasonEngine.calculate(config.latitude)
 
-        // world.WeatherState is now a typealias of model.WeatherState — no conversion needed
-        val weatherState = world?.weather ?: weatherEngine.refresh()
+        // world.WeatherState is a typealias of model.WeatherState — no conversion needed.
+        // If autoWeather is false, ignore any programmatically-set weather and fall back to CLEAR.
+        val weatherState = if (config.autoWeather) {
+            world?.weather ?: weatherEngine.refresh()
+        } else {
+            com.toblad.khwab.aura.model.WeatherState.CLEAR
+        }
+
+        // Compute authoritative lighting state here — not inside Compose layers.
+        val lightingState = lightingEngine.update(time, weatherState)
 
         return themeEngine.createTheme(
             auraState = auraState,
@@ -153,7 +176,9 @@ class AuraEngine(
             season = season,
             stormIntensity = config.stormIntensity,
             sunriseHour = sunTimes?.sunriseHour,
-            sunsetHour = sunTimes?.sunsetHour
+            sunsetHour = sunTimes?.sunsetHour,
+            lightingState = lightingState,
+            animationsEnabled = config.animationsEnabled
         )
     }
 
