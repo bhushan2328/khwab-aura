@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -1080,27 +1082,46 @@ fun CloudLayer(theme: AuraTheme) {
 
     val windIntensity = LocalWindIntensity.current
 
+    // ── Compose-observable frame tick ─────────────────────────────────────────
+    //
+    // OrganicCloud.x is a plain var Float — mutating it does NOT invalidate the
+    // Compose Canvas. Without a Compose-observable signal the Canvas draws once
+    // at the initial cloud positions and never redraws, making clouds invisible
+    // (or at best static blobs that never animate).
+    //
+    // Fix: a single mutableLongStateOf counter is incremented each tick. The
+    // Canvas lambda reads `frameTick` which is Compose State, so every increment
+    // schedules a redraw. The actual cloud positions are still stored in
+    // OrganicCloud.x (plain var) for zero-allocation performance — the tick is
+    // only a redraw signal, not a data source.
+    var frameTick by remember { mutableLongStateOf(0L) }
+
     LaunchedEffect(style, isResumed, theme.animationsEnabled) {
         if (!isResumed || !theme.animationsEnabled) return@LaunchedEffect
         while (isActive) {
             val baseWind = 1f + windIntensity * 1.6f
             for (cloud in clouds) {
-                // Wispy and layered clouds respond differently to wind
                 val morphWindScale = when (cloud.morphology) {
-                    Morphology.WISPY   -> 1.40f   // faster in upper atmosphere
-                    Morphology.LAYERED -> 0.80f   // broad, slow layer
-                    Morphology.TOWER   -> 0.70f   // heavy, slow-moving
+                    Morphology.WISPY   -> 1.40f
+                    Morphology.LAYERED -> 0.80f
+                    Morphology.TOWER   -> 0.70f
                     else               -> 1.00f
                 }
                 val depthWind = baseWind * (0.52f + cloud.depth * 0.25f) * morphWindScale
                 cloud.x -= cloud.speed * depthWind
                 if (cloud.x < -0.55f) cloud.x = 1.55f
             }
+            frameTick++   // signal Compose that positions changed → invalidates Canvas
             delay(16L)
         }
     }
 
+    // frameTick is read here so Compose tracks it as a dependency of this Canvas.
+    // Every time the animation loop increments it the Canvas lambda re-executes,
+    // reading the latest cloud.x values that were updated just before the tick.
     Canvas(modifier = Modifier.fillMaxSize()) {
+        @Suppress("UNUSED_EXPRESSION") frameTick  // explicit read → Canvas subscribes to State
+
         // Draw back-to-front: far (depth 0) first, near (depth 2) last.
         // depthFade: far = 1.0 (max haze), near = 0.0 (full colour)
         for (depthPass in 0..2) {
