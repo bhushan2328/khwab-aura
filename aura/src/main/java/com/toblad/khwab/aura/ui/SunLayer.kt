@@ -364,7 +364,20 @@ fun SunLayer(theme: AuraTheme) {
         val discRadius = size.minDimension * 0.048f
 
         // ── Solar position ──────────────────────────────────────────────────
-        // Three-branch logic preserved exactly from the original SunLayer.
+        // isSolarAccurate: SunEngine.calculateSolarArc() returns screen-space
+        //   coordinates directly — use as-is.
+        //
+        // isLowAngle (DAWN/SUNSET): pin to horizon band.
+        //
+        // fallback circle (no GPS): calculateCircle() uses a unit circle where
+        //   y = (sin(angle) + 1) / 2.  At solar noon (angle = π) sin = 1 so
+        //   position.y = 1.0 — this is the PEAK of the sun arc.  We map it to
+        //   the upper sky area:  sky_y = 0.05 + (1 − position.y) × 0.72
+        //   • noon  (pos.y = 1.0) → 0.05  (top of visible sky)
+        //   • 9am   (pos.y ≈ 0.85) → ~0.16  (upper sky)
+        //   • 6am   (pos.y = 0.5)  → ~0.41  (mid sky)
+        //   The previous formula (1 − pos.y) × 0.55 also placed noon at y = 0
+        //   (off-screen top edge) — same root cause, now corrected.
         val center = if (theme.isSolarAccurate) {
             Offset(
                 x = size.width  * position.x,
@@ -378,7 +391,7 @@ fun SunLayer(theme: AuraTheme) {
         } else {
             Offset(
                 x = size.width  * position.x,
-                y = size.height * (1f - position.y) * 0.55f
+                y = size.height * (0.05f + (1f - position.y) * 0.72f)
             )
         }
 
