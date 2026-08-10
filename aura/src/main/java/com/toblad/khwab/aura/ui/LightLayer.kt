@@ -15,51 +15,80 @@ import com.toblad.khwab.aura.model.AuraTheme
 /**
  * Renders ambient lighting over the scene.
  *
- * Two contributions are blended together:
- *  1. A time-of-day colour tint (e.g. warm orange at sunset, deep blue at night)
- *  2. A darkening overlay whose alpha is derived from [theme.lighting] intensity,
- *     so overcast, rainy and stormy scenes are visibly darker than clear ones.
+ * Phase Color pass: LightLayer is now a SUBTLE darkening pass only.
  *
- * The [LightingState] is computed by [LightingEngine] inside [AuraEngine] — this
- * composable reads it from [AuraTheme] and renders it. It does NOT independently
- * recalculate lighting or create its own [LightingEngine].
+ * The previous behaviour applied strong coloured tints (up to 33% orange at
+ * sunset, 27% indigo at moonlight, 40% black at night) that fought the
+ * physically-inspired gradient system in SkyLayer.  Those tints are replaced
+ * with near-transparent scene-level adjustments:
  *
- * Both transitions are animated with a 4-second cross-fade.
+ *   • Colour tints are capped at ~8 % alpha.  They carry only the faintest
+ *     hint of the phase character — enough to tie the scene together without
+ *     overpowering the sky gradient colours.
+ *
+ *   • The darkening contribution from LightingEngine is retained but capped at
+ *     a maximum of 22 % (previously 40 %).  This is still enough to make a
+ *     storm scene feel dim while leaving night and twilight colours to come
+ *     from SkyLayer rather than from a black overlay.
+ *
+ * Architecture: LightLayer still reads [theme.lighting] and
+ * [theme.profile.ambientLight] — no new data sources are introduced.
+ * Both transitions remain animated with a 4-second cross-fade.
  */
 @Composable
 fun LightLayer(theme: AuraTheme) {
 
-    // ── 1. Time-of-day colour tint ────────────────────────────────────────────
+    // ── 1. Subtle scene-level colour hint ─────────────────────────────────────
+    //
+    // These values are intentionally near-transparent.  Their purpose is to
+    // carry a TRACE of the ambient phase character across all layers simultaneously
+    // (e.g. a hair of warm orange at SUNRISE ties sun, clouds and sky together).
+    //
+    // The realistic colours in SkyLayer, CloudLayer, SunLayer etc. are the
+    // primary colour source.  LightLayer must NOT create a visible coloured
+    // filter effect.
+    //
+    // Alpha budget per phase:
+    //   Clear day phases  — 0x06..0x0A  (~2–4 %)
+    //   Transitional      — 0x0A..0x10  (~4–6 %)
+    //   Night             — 0x00        (zero — night darkness comes from SkyLayer)
+    //   Weather           — 0x08..0x0E  (~3–5 %)
     val tintTarget = when (theme.profile.ambientLight) {
-        AmbientLightStyle.PRE_DAWN  -> Color(0x55000033)
-        AmbientLightStyle.SUNRISE   -> Color(0x22FFB74D)
-        AmbientLightStyle.MORNING   -> Color(0x06B3E5FC)  // faint sky-blue scatter
-        AmbientLightStyle.NOON      -> Color(0x08FFF9C4)  // barely-visible warm gold
-        AmbientLightStyle.AFTERNOON -> Color(0x11FFF59D)
-        AmbientLightStyle.SUNSET    -> Color(0x33FF7043)
-        AmbientLightStyle.EVENING   -> Color(0x332C3E50)
-        AmbientLightStyle.MOONLIGHT -> Color(0x443F51B5)
-        AmbientLightStyle.NIGHT     -> Color(0x66000000)
-        AmbientLightStyle.OVERCAST  -> Color(0x22B0BEC5)
-        AmbientLightStyle.FOG       -> Color(0x44ECEFF1)
+        AmbientLightStyle.PRE_DAWN  -> Color(0x0A000020)   // barely-visible deep blue
+        AmbientLightStyle.SUNRISE   -> Color(0x0EFFA040)   // trace warm gold
+        AmbientLightStyle.MORNING   -> Color(0x06B8DDF0)   // trace sky-blue scatter
+        AmbientLightStyle.NOON      -> Color(0x06FFF8E0)   // trace warm daylight
+        AmbientLightStyle.AFTERNOON -> Color(0x08FFE8A0)   // trace golden afternoon
+        AmbientLightStyle.SUNSET    -> Color(0x10E88040)   // trace warm orange — not a filter
+        AmbientLightStyle.EVENING   -> Color(0x0A203050)   // trace cool blue-grey
+        AmbientLightStyle.MOONLIGHT -> Color(0x00000000)   // no tint — sky handles night colour
+        AmbientLightStyle.NIGHT     -> Color(0x00000000)   // no tint — sky handles night colour
+        AmbientLightStyle.OVERCAST  -> Color(0x0AB0BEC5)   // trace grey-blue cast
+        AmbientLightStyle.FOG       -> Color(0x08D8E4EC)   // trace pale fog scatter
     }
 
     val tint by animateColorAsState(
-        targetValue  = tintTarget,
+        targetValue   = tintTarget,
         animationSpec = tween(durationMillis = 4000),
-        label        = "ambientTint"
+        label         = "ambientTint"
     )
 
-    // ── 2. Intensity darkening from authoritative LightingState ───────────────
-    // theme.lighting is computed by LightingEngine inside AuraEngine — not here.
-    // We invert it to get a darkening alpha: bright sun → nearly zero darkening,
-    // heavy storm → up to ~0.40 darkening.
-    val darkenAlpha = ((1f - theme.lighting.intensity) * 0.40f).coerceIn(0f, 0.40f)
+    // ── 2. Scene darkening from authoritative LightingState ───────────────────
+    //
+    // Inverted intensity → darkening alpha.
+    // Cap reduced from 0.40 to 0.22:  SkyLayer already encodes night darkness
+    // in its gradient palette.  The darkening layer here is only needed for
+    // the EXTRA dimming effect of heavy overcast / storm weather on top of
+    // what is already in the sky gradient.
+    //
+    // A 22 % cap gives a meaningful storm-darkening effect while ensuring
+    // the night sky colour comes from SkyLayer, not from black overlay.
+    val darkenAlpha = ((1f - theme.lighting.intensity) * 0.22f).coerceIn(0f, 0.22f)
 
     val darken by animateColorAsState(
-        targetValue  = Color.Black.copy(alpha = darkenAlpha),
+        targetValue   = Color.Black.copy(alpha = darkenAlpha),
         animationSpec = tween(durationMillis = 4000),
-        label        = "lightingDarken"
+        label         = "lightingDarken"
     )
 
     // ── Render ────────────────────────────────────────────────────────────────
