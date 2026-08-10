@@ -16,7 +16,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import com.toblad.khwab.aura.model.AuraTheme
 import com.toblad.khwab.aura.model.Season
-import com.toblad.khwab.aura.model.TimePhase
 import com.toblad.khwab.aura.model.WeatherState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -41,29 +40,43 @@ import kotlin.random.Random
 private enum class BirdDepth { FAR, MID, NEAR }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Atmospheric bird colour
+// Atmospheric bird colour — continuous solar elevation model
 //
 // Birds at distance look like the sky's silhouette — never pure black.
-// Colour responds to time-of-day and depth.
+// Colour responds to solar elevation and depth continuously.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Returns the base atmospheric silhouette colour for the current sky phase.
+ * Returns the base atmospheric silhouette colour derived from solar elevation.
  *
  * The colour is always a dark desaturated tone — never pure black.
  * Depth further attenuates alpha toward atmosphere.
+ *
+ * [solarElev] normalised solar elevation in [-1, +1].
+ *   Deep night (≤ -0.6) → near-black blue
+ *   Twilight / horizon crossing (≈ 0) → subtle warm dark
+ *   Full day (≥ +0.3) → cool dark blue-grey
  */
-private fun birdColor(phase: TimePhase, depth: BirdDepth, weather: WeatherState): Color {
-    val base = when (phase) {
-        TimePhase.MORNING   -> Color(0xFF2A3540)   // cool dark blue-grey
-        TimePhase.NOON      -> Color(0xFF1E2830)   // deep desaturated blue
-        TimePhase.AFTERNOON -> Color(0xFF243038)   // slightly warm dark grey-blue
-        TimePhase.SUNSET    -> Color(0xFF3A2820)   // dark warm charcoal
-        TimePhase.EVENING   -> Color(0xFF1E2535)   // deep blue-grey dusk
-        TimePhase.NIGHT     -> Color(0xFF151C28)   // very dark blue, barely visible
-        TimePhase.MIDNIGHT  -> Color(0xFF10161E)   // darkest
-        TimePhase.PRE_DAWN  -> Color(0xFF1A2232)   // pre-dawn cool
-        TimePhase.SUNRISE   -> Color(0xFF2E2218)   // dawn warm dark
+private fun birdColor(solarElev: Float, depth: BirdDepth, weather: WeatherState): Color {
+
+    // Warm influence: strongest at horizon crossing
+    val warmZone = when {
+        solarElev < -0.20f -> 0f
+        solarElev < 0f     -> (solarElev + 0.20f) / 0.20f
+        solarElev < 0.20f  -> 1f - solarElev / 0.20f
+        else               -> 0f
+    }.coerceIn(0f, 1f)
+
+    // Anchor colours — all dark/desaturated
+    val nightBase    = Color(0xFF101822)   // near-black deep blue
+    val twilightBase = Color(0xFF2E2218)   // warm dark — sunrise/sunset warmth
+    val dayBase      = Color(0xFF1E2830)   // deep desaturated blue-grey
+
+    val base = when {
+        solarElev <= -0.10f -> nightBase
+        solarElev <= 0f     -> lerpColorAtm(nightBase, twilightBase, warmZone)
+        solarElev <= 0.20f  -> lerpColorAtm(twilightBase, dayBase, solarElev / 0.20f)
+        else                -> dayBase
     }
 
     // Depth fades the silhouette into atmosphere
@@ -88,22 +101,16 @@ private fun birdColor(phase: TimePhase, depth: BirdDepth, weather: WeatherState)
     }
 
     // Environmental warmth tint:
-    // Blend the silhouette colour very slightly toward the ambient sky scatter
-    // colour so birds feel embedded in the same atmospheric light rather than
-    // being flat opaque shapes. The tint is subtle (~8-12% blend) — it should
-    // be perceived as "natural" not "coloured".
-    val envTint = when (phase) {
-        TimePhase.SUNRISE,
-        TimePhase.SUNSET    -> Color(0.55f, 0.38f, 0.25f)   // warm amber scatter
-        TimePhase.MORNING   -> Color(0.35f, 0.46f, 0.58f)   // cool blue morning
-        TimePhase.EVENING   -> Color(0.28f, 0.30f, 0.48f)   // cool violet-blue dusk
-        TimePhase.NIGHT,
-        TimePhase.MIDNIGHT,
-        TimePhase.PRE_DAWN  -> Color(0.20f, 0.26f, 0.40f)   // deep cool night
-        else                -> Color(0.30f, 0.42f, 0.55f)   // neutral daytime sky
+    // Blend silhouette very slightly toward ambient sky scatter so birds feel
+    // embedded in the same atmospheric light.  Tint is ~5-12% — perceived as
+    // "natural" not "coloured".
+    val envTint = when {
+        warmZone > 0.3f    -> Color(0.55f, 0.38f, 0.25f)   // warm scatter at twilight
+        solarElev < -0.10f -> Color(0.20f, 0.26f, 0.40f)   // deep cool night
+        else               -> Color(0.30f, 0.42f, 0.55f)   // neutral daytime sky
     }
     val tintAmt = when (depth) {
-        BirdDepth.FAR  -> 0.12f   // far birds more strongly tinted by atmosphere
+        BirdDepth.FAR  -> 0.12f
         BirdDepth.MID  -> 0.08f
         BirdDepth.NEAR -> 0.05f
     }
@@ -317,9 +324,14 @@ private fun DrawScope.drawBird(
 @Composable
 fun BirdLayer(theme: AuraTheme) {
 
-    val showBirds = theme.timePhase in listOf(
-        TimePhase.MORNING, TimePhase.NOON, TimePhase.AFTERNOON
-    ) && theme.weatherState in listOf(WeatherState.CLEAR, WeatherState.CLOUDY)
+    // Birds are only visible during daylight (solar elevation clearly positive)
+    // and in calm weather.  solarElev > 0.05 corresponds roughly to morning–afternoon.
+    val solarElev = remember(theme.sunriseHour, theme.sunsetHour) {
+        currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour)
+    }
+
+    val showBirds = solarElev > 0.05f &&
+        theme.weatherState in listOf(WeatherState.CLEAR, WeatherState.CLOUDY)
 
     if (!showBirds) return
 
@@ -388,7 +400,7 @@ fun BirdLayer(theme: AuraTheme) {
             val cx = bird.x * size.width
             val cy = bird.y * size.height + bobY + floatY
 
-            val color = birdColor(theme.timePhase, bird.depth, theme.weatherState)
+            val color = birdColor(solarElev, bird.depth, theme.weatherState)
 
             drawBird(
                 center        = Offset(cx, cy),

@@ -22,7 +22,6 @@ import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.pow
-import kotlin.math.sin
 
 /**
  * Atmospheric sky renderer — Phase 11 Continuous Atmospheric Color Physics.
@@ -98,102 +97,13 @@ import kotlin.math.sin
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Solar elevation normalisation
+// Linear interpolation helpers (local aliases — shared versions in AtmosphericUtils)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Returns a normalised solar elevation in [-1, +1].
- *
- * Algorithm:
- *   - The fractional day position is mapped to a half-ellipse arc
- *     identical to SunEngine.calculateSolarArc.
- *   - t = (currentHour - sunriseHour) / dayLength   in [0,1] during daytime
- *   - The solar arc angle goes from π (sunrise) → 0 (sunset) as t goes 0→1.
- *   - sin(arcAngle) peaks at t=0.5 (solar noon) giving the "height" of the sun.
- *   - We map that height to [0, +1] during daytime.
- *   - During nighttime we compute how far the night has progressed toward the
- *     next sunrise and map to [-1, 0].
- *
- * Returns:
- *   +1.0  solar noon
- *    0.0  exact horizon crossing
- *   -1.0  solar midnight (deepest night)
- *
- * When sunriseHour / sunsetHour are null (no GPS), falls back to a
- * fixed-schedule approximation using the system clock hour.
- */
-private fun solarElevationNorm(
-    currentHour: Float,
-    sunriseHour: Float?,
-    sunsetHour:  Float?
-): Float {
+private fun lerp(a: Float, b: Float, t: Float): Float = lerpAtm(a, b, t)
 
-    // ── GPS-accurate path ────────────────────────────────────────────────────
-    if (sunriseHour != null && sunsetHour != null && sunsetHour > sunriseHour) {
-
-        val dayLength   = sunsetHour - sunriseHour
-        val nightLength = 24f - dayLength
-
-        // t: position within [sunrise, sunset] in [0,1]; negative or >1 = night
-        val tDay = (currentHour - sunriseHour) / dayLength
-
-        if (tDay in 0f..1f) {
-            // Daytime: half-sine arc — sin(π × t) maps sunrise/sunset → 0, noon → 1
-            return sin(PI.toFloat() * tDay)          // [0..1]
-        }
-
-        // Nighttime: compute how far we are between sunset and next sunrise.
-        // Normalise night position to [-1..0] with -1 at midnight.
-        val tNight = if (currentHour >= sunsetHour) {
-            (currentHour - sunsetHour) / nightLength        // 0..1 post-sunset
-        } else {
-            // past midnight, before sunrise: offset by 24-nightLength
-            (currentHour + (24f - sunsetHour)) / nightLength
-        }
-        // Map 0 → sunset (0), 0.5 → solar midnight (-1), 1 → next sunrise (0)
-        return -(sin(PI.toFloat() * tNight))         // [0..-1..0]
-    }
-
-    // ── Fallback: fixed 24-hour clock approximation ──────────────────────────
-    // Approximate sunrise at 06:00, solar noon at 13:00, sunset at 20:00.
-    val rise = 6f
-    val set  = 20f
-    val day  = set - rise
-
-    return when {
-        currentHour in rise..set -> {
-            val tDay = (currentHour - rise) / day
-            sin(PI.toFloat() * tDay)
-        }
-        currentHour > set -> {
-            val nightLen = 24f - day
-            val tNight = (currentHour - set) / nightLen
-            -(sin(PI.toFloat() * tNight))
-        }
-        else -> {
-            val nightLen = 24f - day
-            val tNight = (currentHour + (24f - set)) / nightLen
-            -(sin(PI.toFloat() * tNight))
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Linear interpolation helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-private fun lerp(a: Float, b: Float, t: Float): Float = a + (b - a) * t.coerceIn(0f, 1f)
-
-/** Interpolates each RGB channel independently. Alpha is 1f. */
-private fun lerpColor(a: Color, b: Color, t: Float): Color {
-    val tc = t.coerceIn(0f, 1f)
-    return Color(
-        red   = lerp(a.red,   b.red,   tc),
-        green = lerp(a.green, b.green, tc),
-        blue  = lerp(a.blue,  b.blue,  tc),
-        alpha = lerp(a.alpha, b.alpha, tc)
-    )
-}
+/** Interpolates each RGB channel independently. */
+private fun lerpColor(a: Color, b: Color, t: Float): Color = lerpColorAtm(a, b, t)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Atmospheric color anchor points
@@ -671,29 +581,15 @@ fun SkyLayer(theme: AuraTheme) {
     // This gives continuous per-minute precision without duplicating any
     // existing solar calculation.
     var solarElev by remember {
-        val now = TimeState.now()
-        val h = now.hour + now.minute / 60f + now.second / 3600f
-        mutableFloatStateOf(solarElevationNorm(h, theme.sunriseHour, theme.sunsetHour))
+        mutableFloatStateOf(currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour))
     }
 
     LaunchedEffect(isResumed, theme.sunriseHour, theme.sunsetHour) {
         if (!isResumed) return@LaunchedEffect
-        // Immediately recalculate when resumed or when solar times change
-        val now = TimeState.now()
-        solarElev = solarElevationNorm(
-            now.hour + now.minute / 60f + now.second / 3600f,
-            theme.sunriseHour,
-            theme.sunsetHour
-        )
-        // Poll every 30 s — identical cadence to SunLayer
+        solarElev = currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour)
         while (true) {
             delay(30_000L)
-            val t = TimeState.now()
-            solarElev = solarElevationNorm(
-                t.hour + t.minute / 60f + t.second / 3600f,
-                theme.sunriseHour,
-                theme.sunsetHour
-            )
+            solarElev = currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour)
         }
     }
 

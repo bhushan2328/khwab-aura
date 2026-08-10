@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.toblad.khwab.aura.model.AuraTheme
-import com.toblad.khwab.aura.model.TimePhase
 import com.toblad.khwab.aura.model.WeatherEffectStyle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -45,27 +44,42 @@ import kotlin.random.Random
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Time-of-day tint helpers
+// Atmospheric tint helpers — continuous solar elevation model
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Returns a subtle atmospheric tint colour that rain streaks inherit from the
- * current sky.  The tint is extremely restrained — rain must never look coloured,
- * only atmospheric.
+ * Returns a subtle atmospheric tint colour for rain streaks derived from
+ * the normalised solar elevation.
  *
- * The base palette is grey-white.  Warm phases shift it very slightly warm;
- * night phases shift it very slightly cool.
+ * The tint is extremely restrained — rain must never look coloured, only
+ * atmospheric.  Warm phases shift the grey-white slightly warm; night shifts
+ * it slightly cool.
+ *
+ * [solarElev] normalised solar elevation in [-1, +1].
+ * [isPreMeridiem] true if the current hour is before noon (for distinguishing
+ * sunrise warmth from sunset warmth when solarElev is the same magnitude).
  */
-private fun rainAtmosphericTint(phase: TimePhase): Color = when (phase) {
-    TimePhase.MIDNIGHT,
-    TimePhase.NIGHT      -> Color(0xFFBEC8CF)   // slightly cooler grey-white at night
-    TimePhase.PRE_DAWN   -> Color(0xFFC4CDD4)   // cold pre-dawn grey
-    TimePhase.SUNRISE    -> Color(0xFFD2C5BC)   // very faint warm horizon hint
-    TimePhase.MORNING    -> Color(0xFFCDD6DC)   // cool neutral grey-white
-    TimePhase.NOON       -> Color(0xFFD5DADD)   // palest grey, high contrast sky
-    TimePhase.AFTERNOON  -> Color(0xFFD0D8DC)   // similar to noon
-    TimePhase.SUNSET     -> Color(0xFFD0C4B8)   // very subtle warm grey
-    TimePhase.EVENING    -> Color(0xFFC5CBD2)   // cooling dusk
+private fun rainAtmosphericTint(solarElev: Float): Color {
+    // Warm influence: horizon-crossing zone ± 0.20 elev
+    val warmZone = when {
+        solarElev < -0.20f -> 0f
+        solarElev < 0f     -> (solarElev + 0.20f) / 0.20f
+        solarElev < 0.20f  -> 1f - solarElev / 0.20f
+        else               -> 0f
+    }.coerceIn(0f, 1f)
+
+    val isNight = solarElev < -0.10f
+
+    val nightColor = Color(0xFFBEC8CF)    // slightly cooler grey-white
+    val warmColor  = Color(0xFFD0C4B8)    // very subtle warm grey
+    val dayColor   = Color(0xFFD5DADD)    // palest neutral grey
+
+    return when {
+        isNight              -> nightColor
+        solarElev <= 0f      -> lerpColorAtm(nightColor, warmColor, warmZone)
+        solarElev <= 0.20f   -> lerpColorAtm(warmColor,  dayColor,  (solarElev / 0.20f))
+        else                 -> dayColor
+    }
 }
 
 /**
@@ -91,20 +105,32 @@ private fun buildRainPalette(base: Color, rng: Random): Array<Color> {
 }
 
 /**
- * Returns the ambient fog tint for the current time phase.
+ * Returns the ambient fog tint derived from solar elevation.
  *
  * Fog is never pure white — it reflects the atmospheric light of the sky.
+ * Warm phases (horizon crossing) produce a slightly warm-tinted fog;
+ * night produces a cool dark-grey fog; day produces a pale grey-blue.
+ *
+ * [solarElev] normalised solar elevation in [-1, +1].
  */
-private fun fogColor(phase: TimePhase): Color = when (phase) {
-    TimePhase.PRE_DAWN   -> Color(0xFF8FA8B8)
-    TimePhase.SUNRISE    -> Color(0xFFBDA898)
-    TimePhase.MORNING    -> Color(0xFFADBCC8)
-    TimePhase.NOON       -> Color(0xFFB8C4CC)
-    TimePhase.AFTERNOON  -> Color(0xFFB0BFC8)
-    TimePhase.SUNSET     -> Color(0xFFBBA090)
-    TimePhase.EVENING    -> Color(0xFF8895A5)
-    TimePhase.NIGHT      -> Color(0xFF6E7E8E)
-    TimePhase.MIDNIGHT   -> Color(0xFF62727F)
+private fun fogColor(solarElev: Float): Color {
+    val warmZone = when {
+        solarElev < -0.20f -> 0f
+        solarElev < 0f     -> (solarElev + 0.20f) / 0.20f
+        solarElev < 0.20f  -> 1f - solarElev / 0.20f
+        else               -> 0f
+    }.coerceIn(0f, 1f)
+
+    val nightFog = Color(0xFF62727F)    // deep cool grey-blue night fog
+    val warmFog  = Color(0xFFBDA898)    // warm atmospheric fog at sunrise/sunset
+    val dayFog   = Color(0xFFB8C4CC)    // pale grey-blue daytime fog
+
+    return when {
+        solarElev < -0.10f -> nightFog
+        solarElev <= 0f    -> lerpColorAtm(nightFog, warmFog, warmZone)
+        solarElev <= 0.20f -> lerpColorAtm(warmFog, dayFog, solarElev / 0.20f)
+        else               -> dayFog
+    }
 }
 
 /** Snow colours — cool neutral whites, never glowing. */
@@ -825,6 +851,11 @@ fun WeatherLayer(theme: AuraTheme) {
     val animationsEnabled = theme.animationsEnabled
     val wind              = LocalWindIntensity.current
 
+    // Compute solar elevation once here so all sub-composables share the same value.
+    val solarElev = remember(theme.sunriseHour, theme.sunsetHour) {
+        currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour)
+    }
+
     when (effect) {
         WeatherEffectStyle.RAIN,
         WeatherEffectStyle.STORM -> {
@@ -832,7 +863,7 @@ fun WeatherLayer(theme: AuraTheme) {
                 intense           = isStorm,
                 intensity         = theme.profile.stormIntensity,
                 wind              = wind,
-                timePhase         = theme.timePhase,
+                solarElev         = solarElev,
                 isResumed         = isResumed,
                 animationsEnabled = animationsEnabled
             )
@@ -840,14 +871,14 @@ fun WeatherLayer(theme: AuraTheme) {
         WeatherEffectStyle.SNOW -> {
             AnimatedSnow(
                 wind              = wind,
-                timePhase         = theme.timePhase,
+                solarElev         = solarElev,
                 isResumed         = isResumed,
                 animationsEnabled = animationsEnabled
             )
         }
         WeatherEffectStyle.FOG -> {
             AnimatedFog(
-                timePhase         = theme.timePhase,
+                solarElev         = solarElev,
                 wind              = wind,
                 isResumed         = isResumed,
                 animationsEnabled = animationsEnabled
@@ -874,7 +905,7 @@ private fun AnimatedRain(
     intense:           Boolean,
     intensity:         Float,
     wind:              Float,
-    timePhase:         TimePhase,
+    solarElev:         Float,
     isResumed:         Boolean,
     animationsEnabled: Boolean
 ) {
@@ -885,11 +916,12 @@ private fun AnimatedRain(
     val windAngleState = remember { mutableFloatStateOf(0.07f + wind * 0.59f) }
     windAngleState.floatValue = 0.07f + wind * 0.59f
 
-    // Build rain palette from the time-of-day tint.
-    // Remember per timePhase: palette only needs rebuilding when the phase changes
-    // (which is infrequent).
-    val rainPalette = remember(timePhase) {
-        buildRainPalette(rainAtmosphericTint(timePhase), Random)
+    // Build rain palette from the continuous solar elevation tint.
+    // Bucket solarElev to 0.05 increments so palette only rebuilds when sky
+    // has meaningfully changed — avoids unnecessary per-recomposition allocations.
+    val elevBucket = (solarElev * 20).toInt()   // changes ~every 5% elev change
+    val rainPalette = remember(elevBucket) {
+        buildRainPalette(rainAtmosphericTint(solarElev), Random)
     }
 
     val drops = remember(intense, severity) {
@@ -966,7 +998,7 @@ private fun AnimatedRain(
 @Composable
 private fun AnimatedSnow(
     wind:              Float,
-    timePhase:         TimePhase,
+    solarElev:         Float,
     isResumed:         Boolean,
     animationsEnabled: Boolean
 ) {
@@ -979,15 +1011,10 @@ private fun AnimatedSnow(
     val windState = remember { mutableFloatStateOf(wind) }
     windState.floatValue = wind
 
-    // Time-of-day visibility.  Snow contrast is lower at night (blends into dark sky);
-    // by day it is more visible against a lighter sky.
-    val timeVis = when (timePhase) {
-        TimePhase.NOON, TimePhase.AFTERNOON  -> 1.00f
-        TimePhase.MORNING                    -> 0.90f
-        TimePhase.SUNRISE, TimePhase.SUNSET  -> 0.72f
-        TimePhase.EVENING, TimePhase.PRE_DAWN -> 0.52f
-        TimePhase.NIGHT, TimePhase.MIDNIGHT  -> 0.38f
-    }
+    // Continuous solar elevation visibility.
+    // Snow contrast is lower at night (blends into dark sky); higher by day.
+    // Maps solarElev [-1, +1] to visibility [0.28, 1.00] smoothly.
+    val timeVis = (0.38f + solarElev * 0.62f).coerceIn(0.28f, 1.00f)
 
     LaunchedEffect(isResumed, animationsEnabled) {
         if (!isResumed || !animationsEnabled) return@LaunchedEffect
@@ -1045,7 +1072,7 @@ private fun AnimatedSnow(
 
 @Composable
 private fun AnimatedFog(
-    timePhase:         TimePhase,
+    solarElev:         Float,
     wind:              Float,
     isResumed:         Boolean,
     animationsEnabled: Boolean
@@ -1056,7 +1083,7 @@ private fun AnimatedFog(
         }
     }
 
-    val baseColor = fogColor(timePhase)
+    val baseColor = fogColor(solarElev)
 
     LaunchedEffect(isResumed, animationsEnabled) {
         if (!isResumed || !animationsEnabled) return@LaunchedEffect

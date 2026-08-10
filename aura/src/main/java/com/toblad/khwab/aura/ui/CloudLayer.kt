@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -16,7 +18,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import com.toblad.khwab.aura.model.AuraTheme
 import com.toblad.khwab.aura.model.CloudStyle
-import com.toblad.khwab.aura.model.TimePhase
 import com.toblad.khwab.aura.world.TimeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -952,67 +953,86 @@ fun CloudLayer(theme: AuraTheme) {
         CloudStyle.STORM     -> Triple(5, 4, 3)
     }
 
-    // currentHour: read once at composition for morning litColor interpolation
-    val currentHour = remember { TimeState.now().hour + TimeState.now().minute / 60f }
-
-    val isSunset  = theme.timePhase == TimePhase.SUNSET
-    val isSunrise = theme.timePhase == TimePhase.SUNRISE || theme.timePhase == TimePhase.PRE_DAWN
-    val isNight   = theme.timePhase == TimePhase.NIGHT || theme.timePhase == TimePhase.MIDNIGHT
-    val isStorm   = style == CloudStyle.STORM
+    val isStorm    = style == CloudStyle.STORM
     val isOvercast = style == CloudStyle.OVERCAST
 
-    // ── Colour palette ────────────────────────────────────────────────────────
-    //
-    // Phase Color pass:
-    //   Cloud lit/shadow colours derive from the same atmospheric lighting model.
-    //   Clouds are NOT isolated coloured objects — they respond to the sky light.
-    //
-    //   Lit top:    sunlit upper surface — colour of the prevailing sky light
-    //   Shadow:     underside — cooler/darker, blue-grey bias
-    //   Rim:        directional edge highlight — warm at sunrise/sunset only
-    //
-    //   Key principle: storm and overcast reduce cloud contrast but do NOT
-    //   replace natural sky tones with pure grey / pure white.
-
-    val litColor: Color = when {
-        isStorm    -> Color(0xFF68727A)   // desaturated dark grey-blue, not black
-        isOvercast -> Color(0xFFC8CAC8)   // soft neutral grey-white
-        else -> when (theme.timePhase) {
-            TimePhase.MIDNIGHT  -> Color(0xFF606E80)   // subtle moonlit silver-blue
-            TimePhase.NIGHT     -> Color(0xFF6A7888)   // soft silver-grey, moonlit
-            TimePhase.PRE_DAWN  -> Color(0xFF8090A8)   // cool blue-grey lightening
-            TimePhase.SUNRISE   -> Color(0xFFF0E4D0)   // warm pale ivory — lit by sunrise
-            TimePhase.MORNING   -> {
-                // Smooth morning progression: early morning slightly warm, later neutral
-                val t = ((currentHour - 6f) / 4f).coerceIn(0f, 1f)
-                Color(
-                    red   = 0.94f + 0.06f * (1f - t),
-                    green = 0.92f + 0.06f * t,
-                    blue  = 0.90f + 0.10f * t
-                )
-            }
-            TimePhase.NOON      -> Color(0xFFF4F5F5)   // near-white neutral daylight
-            TimePhase.AFTERNOON -> Color(0xFFF8F2E4)   // faintly warm white afternoon
-            TimePhase.SUNSET    -> Color(0xFFE0D4C8)   // warm neutral; rim carries warmth
-            TimePhase.EVENING   -> Color(0xFFBCC4D4)   // cool blue-grey post-sunset
+    // ── Continuous solar elevation ────────────────────────────────────────────
+    // Mirrors SkyLayer's 30-second poll so cloud colours evolve together.
+    var solarElev by remember {
+        mutableFloatStateOf(currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour))
+    }
+    LaunchedEffect(isResumed, theme.sunriseHour, theme.sunsetHour) {
+        if (!isResumed) return@LaunchedEffect
+        solarElev = currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour)
+        while (true) {
+            delay(30_000L)
+            solarElev = currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour)
         }
     }
 
+    // Derived booleans used by drawOrganicCloud geometry decisions
+    val isSunrise = solarElev in -0.08f..0.12f && run {
+        val now = TimeState.now()
+        val h = now.hour + now.minute / 60f
+        h < 14f   // ante-meridiem: treat as sunrise zone
+    }
+    val isSunset  = solarElev in -0.08f..0.12f && !isSunrise
+    val isNight   = solarElev <= -0.10f
+
+    // ── Cloud colour palette — continuous solar elevation model ───────────────
+    //
+    // Cloud lit/shadow/rim colours respond to the same solar arc that drives
+    // SkyLayer.  The warmth is concentrated near the horizon-crossing zone
+    // (solarElev ≈ 0) and fades symmetrically on both sides.
+    //
+    // Storm and overcast reduce contrast but do NOT replace natural sky tones.
+
+    // Warm influence factor: peaks at solarElev=0 (horizon crossing), fades to 0
+    // for solarElev ≤ -0.20 (night) and solarElev ≥ +0.30 (full day).
+    val warmZone = when {
+        solarElev < -0.20f -> 0f
+        solarElev < 0f     -> (solarElev + 0.20f) / 0.20f   // -0.20..0 → 0..1
+        solarElev < 0.30f  -> 1f - solarElev / 0.30f         // 0..0.30 → 1..0
+        else               -> 0f
+    }.coerceIn(0f, 1f)
+
+    // Day influence: how "bright daylight" the cloud should look
+    val dayFactor = solarElev.coerceIn(0f, 1f)
+
+    // Anchor lit colours: night, warm-transition, full-day
+    val litNight   = Color(0xFF606E80)   // moonlit silver-blue
+    val litWarm    = Color(0xFFF2E4D0)   // warm sunrise/sunset ivory
+    val litDay     = Color(0xFFF4F5F5)   // near-white neutral daylight
+
+    val litColor: Color = when {
+        isStorm    -> Color(0xFF68727A)
+        isOvercast -> Color(0xFFC8CAC8)
+        else -> {
+            // Blend: night → warm → day continuously
+            val base = if (solarElev <= 0f) {
+                lerpColorAtm(litNight, litWarm, warmZone)
+            } else {
+                lerpColorAtm(litWarm, litDay, dayFactor / 1f)
+            }
+            base
+        }
+    }
+
+    // Shadow: always cooler/darker than lit; more violet near twilight
+    val shadowNight   = Color(0xFF1E2838)   // deep cool dark
+    val shadowTwilight = Color(0xFF3A3858)  // violet-grey twilight underside
+    val shadowDay     = Color(
+        red   = (litColor.red   * 0.42f).coerceIn(0f, 1f),
+        green = (litColor.green * 0.44f).coerceIn(0f, 1f),
+        blue  = (litColor.blue  * 0.50f).coerceIn(0f, 1f)
+    )
     val shadowColor: Color = when {
-        isStorm    -> Color(0xFF262E38)   // dark charcoal blue-grey storm base
-        isOvercast -> Color(0xFF848890)   // soft neutral grey
-        else -> when (theme.timePhase) {
-            TimePhase.NIGHT,
-            TimePhase.MIDNIGHT  -> Color(0xFF202A38)   // deep cool dark — matches sky
-            TimePhase.SUNSET    -> Color(0xFF484858)   // cool grey-violet underside
-            TimePhase.EVENING   -> Color(0xFF303050)   // deep violet-grey blue hour
-            TimePhase.SUNRISE,
-            TimePhase.PRE_DAWN  -> Color(0xFF383858)   // cool violet underside at dawn
-            else -> Color(
-                red   = (litColor.red   * 0.42f).coerceIn(0f, 1f),
-                green = (litColor.green * 0.44f).coerceIn(0f, 1f),
-                blue  = (litColor.blue  * 0.50f).coerceIn(0f, 1f)
-            )
+        isStorm    -> Color(0xFF262E38)
+        isOvercast -> Color(0xFF848890)
+        else -> when {
+            solarElev <= -0.10f -> shadowNight
+            solarElev <= 0.10f  -> lerpColorAtm(shadowNight, shadowTwilight, warmZone)
+            else                -> lerpColorAtm(shadowTwilight, shadowDay, dayFactor)
         }
     }
 
@@ -1022,20 +1042,18 @@ fun CloudLayer(theme: AuraTheme) {
         blue  = (litColor.blue  * 0.70f + shadowColor.blue  * 0.30f).coerceIn(0f, 1f)
     )
 
-    // rimColor: the directional light edge on the cloud top.
-    // At sunrise/sunset this is the dominant warm colour contribution.
-    // Daytime: near-white. Night: silver-blue moonlight.
-    // Storm: nearly suppressed.
+    // Rim colour: warm gold at horizon crossing; near-white by day; silver-blue at night
+    val rimNight  = Color(0xFFA4B2C4)   // subtle moonlit silver-blue
+    val rimWarm   = Color(0xFFE8B86A)   // warm peach-gold (sunrise/sunset rim)
+    val rimDay    = Color(0xFFF4F2EE)   // near-white daytime
+
     val rimColor: Color = when {
-        isStorm  -> Color(0xFF585E68)    // suppressed storm glow
-        isSunset -> Color(0xFFE07030)    // warm orange-amber rim — concentrated not dominant
-        isNight  -> Color(0xFFA4B2C4)    // subtle silver-blue moonlit rim
-        else -> when (theme.timePhase) {
-            TimePhase.SUNRISE,
-            TimePhase.PRE_DAWN  -> Color(0xFFE8C07A)    // warm peach-gold dawn rim
-            TimePhase.MORNING   -> Color(0xFFF0E8C8)    // soft warm morning rim
-            TimePhase.AFTERNOON -> Color(0xFFFCEAB8)    // warm gold afternoon rim
-            else                -> Color(0xFFF2F2F0)    // near-white neutral daytime
+        isStorm  -> Color(0xFF585E68)
+        else -> when {
+            solarElev <= -0.10f -> rimNight
+            solarElev <= 0.10f  -> lerpColorAtm(rimNight, rimWarm, warmZone)
+            solarElev <= 0.40f  -> lerpColorAtm(rimWarm, rimDay, (solarElev - 0.10f) / 0.30f)
+            else                -> rimDay
         }
     }
 
