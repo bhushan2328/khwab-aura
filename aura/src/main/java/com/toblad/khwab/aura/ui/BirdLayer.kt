@@ -326,9 +326,8 @@ fun BirdLayer(theme: AuraTheme) {
 
     // Birds are only visible during daylight (solar elevation clearly positive)
     // and in calm weather.  solarElev > 0.05 corresponds roughly to morning–afternoon.
-    val solarElev = remember(theme.sunriseHour, theme.sunsetHour) {
-        currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour)
-    }
+    // Use the ONE authoritative solar elevation from the theme rather than polling.
+    val solarElev = theme.solarElevNorm
 
     val showBirds = solarElev > 0.05f &&
         theme.weatherState in listOf(WeatherState.CLEAR, WeatherState.CLOUDY)

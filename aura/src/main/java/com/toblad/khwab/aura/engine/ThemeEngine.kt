@@ -20,7 +20,8 @@ class ThemeEngine {
         sunriseHour: Float? = null,
         sunsetHour: Float? = null,
         lightingState: LightingState = LightingState(),
-        animationsEnabled: Boolean = true
+        animationsEnabled: Boolean = true,
+        solarElevNorm: Float = 0.5f
     ): AuraTheme {
 
         val profile = createProfile(timePhase, weatherState, moonPhase, season, stormIntensity)
@@ -35,7 +36,8 @@ class ThemeEngine {
             sunsetHour = sunsetHour,
             isSolarAccurate = sunriseHour != null && sunsetHour != null,
             lighting = lightingState,
-            animationsEnabled = animationsEnabled
+            animationsEnabled = animationsEnabled,
+            solarElevNorm = solarElevNorm
         )
     }
 

@@ -7,6 +7,7 @@ import com.toblad.khwab.aura.renderer.RenderContext
 import com.toblad.khwab.aura.season.SeasonEngine
 import com.toblad.khwab.aura.sun.MoonPhaseCalculator
 import com.toblad.khwab.aura.sun.SolarCalculator
+import com.toblad.khwab.aura.ui.solarElevationNormPublic
 import com.toblad.khwab.aura.world.AuraWorld
 import com.toblad.khwab.aura.world.TimeState
 
@@ -167,6 +168,15 @@ class AuraEngine(
         // Compute authoritative lighting state here — not inside Compose layers.
         val lightingState = lightingEngine.update(time, weatherState)
 
+        // ONE authoritative solar elevation for this theme — all visual layers read this
+        // value from AuraTheme instead of computing it independently.
+        val currentHour = time.hour + time.minute / 60f + time.second / 3600f
+        val solarElevNorm = solarElevationNormPublic(
+            currentHour = currentHour,
+            sunriseHour = sunTimes?.sunriseHour,
+            sunsetHour  = sunTimes?.sunsetHour
+        )
+
         return themeEngine.createTheme(
             auraState = auraState,
             timePhase = timePhase,
@@ -178,7 +188,8 @@ class AuraEngine(
             sunriseHour = sunTimes?.sunriseHour,
             sunsetHour = sunTimes?.sunsetHour,
             lightingState = lightingState,
-            animationsEnabled = config.animationsEnabled
+            animationsEnabled = config.animationsEnabled,
+            solarElevNorm = solarElevNorm
         )
     }
 

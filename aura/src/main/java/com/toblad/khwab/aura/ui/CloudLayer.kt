@@ -5,10 +5,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -956,19 +954,10 @@ fun CloudLayer(theme: AuraTheme) {
     val isStorm    = style == CloudStyle.STORM
     val isOvercast = style == CloudStyle.OVERCAST
 
-    // ── Continuous solar elevation ────────────────────────────────────────────
-    // Mirrors SkyLayer's 30-second poll so cloud colours evolve together.
-    var solarElev by remember {
-        mutableFloatStateOf(currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour))
-    }
-    LaunchedEffect(isResumed, theme.sunriseHour, theme.sunsetHour) {
-        if (!isResumed) return@LaunchedEffect
-        solarElev = currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour)
-        while (true) {
-            delay(30_000L)
-            solarElev = currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour)
-        }
-    }
+    // ── Continuous solar elevation — from the ONE authoritative theme value ───
+    // Matches SkyLayer exactly because both read theme.solarElevNorm, which
+    // AuraEngine computes once per theme refresh.
+    val solarElev = theme.solarElevNorm
 
     // Derived booleans used by drawOrganicCloud geometry decisions
     val isSunrise = solarElev in -0.08f..0.12f && run {

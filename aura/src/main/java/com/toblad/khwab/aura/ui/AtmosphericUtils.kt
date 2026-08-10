@@ -22,6 +22,17 @@ import kotlin.math.sin
  * Uses the real sunrise/sunset hours from AuraTheme when available.
  * Falls back to a fixed-clock approximation when GPS data is absent.
  */
+/**
+ * Public overload so AuraEngine (outside the ui package) can compute
+ * the canonical solar elevation norm without duplicating the formula.
+ * The internal overload (below) remains for legacy internal call sites.
+ */
+fun solarElevationNormPublic(
+    currentHour: Float,
+    sunriseHour: Float?,
+    sunsetHour:  Float?
+): Float = solarElevationNorm(currentHour, sunriseHour, sunsetHour)
+
 internal fun solarElevationNorm(
     currentHour: Float,
     sunriseHour: Float?,

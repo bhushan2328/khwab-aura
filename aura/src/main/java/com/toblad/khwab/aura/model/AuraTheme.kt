@@ -11,6 +11,18 @@ import com.toblad.khwab.aura.world.LightingState
  * inside the engine pipeline. Compose layers must consume this value — they
  * must NOT create their own [LightingEngine] instances.
  *
+ * [solarElevNorm] is the ONE authoritative normalised solar elevation for the
+ * current theme.  It is computed once in AuraEngine.generateTheme() from the
+ * real solar times (or fixed fallback) and propagated here.  All visual layers
+ * MUST read this value instead of calling currentSolarElevNorm() themselves,
+ * which eliminates per-layer solar-elevation drift and the 30-second step
+ * problem (the theme is refreshed on a schedule; layers animate between values
+ * using Compose animateColorAsState).
+ *
+ *   +1.0  solar noon
+ *    0.0  horizon crossing (sunrise / sunset)
+ *   -1.0  solar midnight (deep night)
+ *
  * [animationsEnabled] reflects [AuraConfig.animationsEnabled] so Compose
  * layers can gate their animation coroutines on a single flag.
  */
@@ -86,5 +98,22 @@ data class AuraTheme(
      * Mirrors [AuraConfig.animationsEnabled] — Compose layers gate
      * their animation coroutines on this flag.
      */
-    val animationsEnabled: Boolean = true
+    val animationsEnabled: Boolean = true,
+
+    /**
+     * Authoritative normalised solar elevation for this theme.
+     *
+     * Range: [-1.0, +1.0]
+     *   +1.0  →  solar noon (sun at highest elevation)
+     *    0.0  →  horizon crossing (sunrise or sunset)
+     *   -1.0  →  solar midnight (sun at lowest point)
+     *
+     * Computed once by [com.toblad.khwab.aura.engine.AuraEngine] and
+     * shared with all visual layers.  Visual layers MUST use this value
+     * instead of calling [com.toblad.khwab.aura.ui.currentSolarElevNorm]
+     * independently so all elements share the same atmospheric reference.
+     *
+     * Default is 0.5 (mid-morning / mid-afternoon — clearly daytime).
+     */
+    val solarElevNorm: Float = 0.5f
 )

@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import com.toblad.khwab.aura.model.AuraTheme
-import com.toblad.khwab.aura.model.TimePhase
 import com.toblad.khwab.aura.model.WeatherState
 import com.toblad.khwab.aura.sun.MoonPhaseCalculator
 import kotlinx.coroutines.delay
@@ -194,26 +193,37 @@ private fun buildStars(rng: Random): List<Star> = buildList {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Time-phase visibility multiplier
+// Continuous solar elevation → star visibility
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Continuous star visibility multiplier for each time phase.
+ * Continuous star visibility multiplier derived from normalised solar elevation.
  *
- * Returns a value in 0.0..1.0 — never a hard binary switch.
- * The transition phases (EVENING, PRE_DAWN, SUNRISE, SUNSET) return
- * intermediate values so the star field grows and fades smoothly.
+ * Uses [solarElevNorm] (−1..+1) for a smooth, physics-inspired mapping that
+ * eliminates the discrete phase-jump behaviour of the old timePhaseMult().
+ *
+ * Physical model:
+ *   solarElev ≤ −0.25  →  full darkness → stars fully visible
+ *   −0.25 .. −0.08     →  astronomical twilight → stars gradually suppressed
+ *   −0.08 .. +0.05     →  civil twilight / horizon crossing → rapid fade
+ *   +0.05 and above    →  daytime → no stars (0)
+ *
+ * The transition zone around the horizon crossing (≈ ±0.10) is intentionally
+ * narrow so the star field appears and disappears realistically near dusk/dawn.
  */
-private fun timePhaseMult(phase: TimePhase): Float = when (phase) {
-    TimePhase.MIDNIGHT   -> 1.00f
-    TimePhase.NIGHT      -> 0.95f
-    TimePhase.PRE_DAWN   -> 0.70f   // stars still plentiful but sky begins lightening
-    TimePhase.EVENING    -> 0.40f   // twilight — stars just becoming visible
-    TimePhase.SUNRISE    -> 0.08f   // almost gone
-    TimePhase.SUNSET     -> 0.05f   // only just starting to appear
-    TimePhase.MORNING    -> 0.00f
-    TimePhase.NOON       -> 0.00f
-    TimePhase.AFTERNOON  -> 0.00f
+private fun solarElevToStarMult(solarElev: Float): Float = when {
+    solarElev <= -0.25f -> 1.00f                                          // deep night: fully on
+    solarElev <= -0.08f -> {
+        // Astronomical twilight → civil twilight: gradual suppression
+        val t = (solarElev - (-0.25f)) / (-0.08f - (-0.25f))             // 0..1
+        1.00f - t * 0.60f                                                 // 1.00 → 0.40
+    }
+    solarElev <= 0.05f  -> {
+        // Civil twilight → horizon crossing: rapid fade
+        val t = (solarElev - (-0.08f)) / (0.05f - (-0.08f))             // 0..1
+        0.40f - t * 0.40f                                                 // 0.40 → 0.00
+    }
+    else                -> 0.00f                                          // daytime: no stars
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -303,13 +313,14 @@ private fun moonSuppressionMult(illumination: Float, magnitude: Float): Float {
 @Composable
 fun StarLayer(theme: AuraTheme) {
 
-    // ── Visibility gate ────────────────────────────────────────────────────
-    // Skip entirely for daytime phases where the multiplier is 0.
-    val phaseVisible = timePhaseMult(theme.timePhase) > 0f
-    if (!phaseVisible) return
+    // ── Visibility gate — continuous solar elevation ───────────────────────
+    // Use the ONE authoritative solar elevation from the theme.  Skip entirely
+    // when the sun is clearly above the horizon (no stars visible in daylight).
+    val solarElev = theme.solarElevNorm
+    val phaseMult = solarElevToStarMult(solarElev)
+    if (phaseMult <= 0f) return
 
     // ── Shared multipliers computed outside the draw loop ─────────────────
-    val phaseMult   = timePhaseMult(theme.timePhase)
     val weatherBase = weatherMult(theme.weatherState)
 
     // Moon illumination — computed once at composition time.

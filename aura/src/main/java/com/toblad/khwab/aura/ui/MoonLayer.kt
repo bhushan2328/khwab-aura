@@ -432,8 +432,12 @@ fun MoonLayer(theme: AuraTheme) {
     }
 
     // Night sky shadow fill — must closely match the SkyLayer night background.
-    // Phase Color pass: updated to match the refined NIGHT zenith colour.
-    val shadowColor = Color(0xFF020914)   // matches NIGHT zenith from Phase Color SkyLayer
+    // Matches SKY_DEEP_NIGHT zenith (Color(0xFF010208)) blended toward the mid-sky value
+    // at the moon's rendered position.  The value below is a reasonable average for the
+    // upper-sky region where the moon typically sits.
+    // Note: isNight is available here and could be used for day/night shadow colour if needed,
+    // but since MoonLayer only renders at night phases the night colour is always correct.
+    val shadowColor = Color(0xFF010810)   // deep night blue-black — consistent with SkyLayer night zenith
 
     Canvas(modifier = Modifier.fillMaxSize()) {
 

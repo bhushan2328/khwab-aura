@@ -851,10 +851,9 @@ fun WeatherLayer(theme: AuraTheme) {
     val animationsEnabled = theme.animationsEnabled
     val wind              = LocalWindIntensity.current
 
-    // Compute solar elevation once here so all sub-composables share the same value.
-    val solarElev = remember(theme.sunriseHour, theme.sunsetHour) {
-        currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour)
-    }
+    // Use the ONE authoritative solar elevation from the theme — shared by all
+    // sub-composables (rain, snow, fog) so they all see the same atmosphere.
+    val solarElev = theme.solarElevNorm
 
     when (effect) {
         WeatherEffectStyle.RAIN,

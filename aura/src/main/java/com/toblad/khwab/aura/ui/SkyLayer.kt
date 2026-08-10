@@ -5,11 +5,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -17,8 +14,6 @@ import com.toblad.khwab.aura.model.AuraTheme
 import com.toblad.khwab.aura.model.Season
 import com.toblad.khwab.aura.model.WeatherState
 import com.toblad.khwab.aura.sun.MoonPhaseCalculator
-import com.toblad.khwab.aura.world.TimeState
-import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.pow
@@ -87,10 +82,10 @@ import kotlin.math.pow
  *
  * ── Performance ───────────────────────────────────────────────────────────────
  *
- * Solar elevation is computed from TimeState (current clock) at startup and
- * refreshed every 30 seconds via a LaunchedEffect — matching SunLayer's poll
- * interval.  No per-frame allocations are introduced.  The Brush is rebuilt only
- * when an animated Color state changes.
+ * Solar elevation is read from [AuraTheme.solarElevNorm] — the ONE authoritative
+ * value computed by AuraEngine on each theme refresh.  No per-layer poll
+ * coroutine is needed.  animateColorAsState(tween(3000)) provides smooth visual
+ * transitions between theme refreshes.  No per-frame allocations.
  *
  * animateColorAsState is called exactly 9 times (5 base + 4 weather) per the
  * Compose rules — never inside loops or lambdas.
@@ -573,25 +568,12 @@ private fun weatherOverlayStops(
 @Composable
 fun SkyLayer(theme: AuraTheme) {
 
-    val isResumed by rememberIsResumed()
-
-    // ── Solar elevation — updated every 30 seconds ─────────────────────────
-    // Computed from TimeState.now() using the sunrise/sunset hours already
-    // stored in AuraTheme (produced by SolarCalculator inside AuraEngine).
-    // This gives continuous per-minute precision without duplicating any
-    // existing solar calculation.
-    var solarElev by remember {
-        mutableFloatStateOf(currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour))
-    }
-
-    LaunchedEffect(isResumed, theme.sunriseHour, theme.sunsetHour) {
-        if (!isResumed) return@LaunchedEffect
-        solarElev = currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour)
-        while (true) {
-            delay(30_000L)
-            solarElev = currentSolarElevNorm(theme.sunriseHour, theme.sunsetHour)
-        }
-    }
+    // ── Solar elevation — from the ONE authoritative theme value ───────────
+    // AuraEngine computes this once per theme refresh and stores it in
+    // AuraTheme.solarElevNorm.  No per-layer poll coroutine is needed.
+    // animateColorAsState(tween(3000)) below provides smooth visual transition
+    // between theme refreshes so atmospheric evolution looks continuous.
+    val solarElev = theme.solarElevNorm
 
     // ── Moonlight contribution ──────────────────────────────────────────────
     // Lunar illumination from MoonPhaseCalculator — read once at composition,
