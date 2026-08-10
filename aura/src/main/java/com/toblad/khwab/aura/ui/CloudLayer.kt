@@ -764,22 +764,29 @@ private fun DrawScope.drawOrganicCloud(
     // terminating with a hard visible edge against the lower atmosphere.
     // Far-plane clouds (depthFade ≈ 1) start fading earlier because they are
     // conceptually more distant and more affected by atmospheric haze.
+    //
+    // Floor raised from 0.35 → 0.65 (fade max reduced from 0.65 → 0.35).
+    // The old 0.35 floor collapsed cloud alpha to ~4% at night (sky is dark,
+    // so clouds in the upper half of the canvas should stay visible, not dissolve).
     val horizonFadeStart = 0.28f - depthFade * 0.08f   // far: 0.20, near: 0.28
     val horizonFadeEnd   = 0.42f - depthFade * 0.06f   // far: 0.36, near: 0.42
     val horizonAttenuation = when {
         cloud.y < horizonFadeStart -> 1.0f
         cloud.y < horizonFadeEnd   ->
             1f - ((cloud.y - horizonFadeStart) / (horizonFadeEnd - horizonFadeStart))
-                .coerceIn(0f, 1f) * 0.65f
-        else                       -> 0.35f
+                .coerceIn(0f, 1f) * 0.35f
+        else                       -> 0.65f
     }
 
     val base  = cloud.baseAlpha * ambientAlpha * horizonAttenuation
 
-    // Atmospheric perspective: far clouds blend toward neutral sky-grey.
-    // atmBlend increased from 0.40 to 0.48 for far clouds — makes them more
-    // convincingly embedded in haze rather than sitting on top of the sky.
-    val atmMid   = Color(0.70f, 0.72f, 0.75f)
+    // Atmospheric perspective: far clouds blend toward a sky-grey that matches
+    // the ambient brightness. During daytime the haze is a pale blue-grey;
+    // at night it is a very dark blue-grey matching the night sky so that far
+    // clouds fade toward the correct dark background rather than a bright wash
+    // that would look out of place in a dark scene.
+    val atmMid   = if (isNight) Color(0.08f, 0.10f, 0.14f)   // dark night sky-grey
+                   else        Color(0.70f, 0.72f, 0.75f)    // pale daytime haze
     val atmBlend = depthFade * 0.48f
     fun atmMix(c: Color) = Color(
         red   = c.red   * (1f - atmBlend) + atmMid.red   * atmBlend,
