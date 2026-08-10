@@ -23,6 +23,14 @@ import com.toblad.khwab.aura.world.LightingState
  *    0.0  horizon crossing (sunrise / sunset)
  *   -1.0  solar midnight (deep night)
  *
+ * [moonIlluminationFraction] is the ONE authoritative lunar illumination
+ * (0 = new moon, 1 = full moon) computed once in AuraEngine from
+ * MoonPhaseCalculator.  Previously each of SkyLayer, StarLayer, and MoonLayer
+ * independently called MoonPhaseCalculator.phaseFraction() inside a remember{}.
+ * The value is stable for many hours so the computation is cheap, but having it
+ * in AuraTheme makes the single-source architecture explicit and avoids any
+ * subtle divergence between layers if the clock rolls past a phase boundary.
+ *
  * [animationsEnabled] reflects [AuraConfig.animationsEnabled] so Compose
  * layers can gate their animation coroutines on a single flag.
  */
@@ -115,5 +123,24 @@ data class AuraTheme(
      *
      * Default is 0.5 (mid-morning / mid-afternoon — clearly daytime).
      */
-    val solarElevNorm: Float = 0.5f
+    val solarElevNorm: Float = 0.5f,
+
+    /**
+     * Authoritative lunar illumination fraction for this theme.
+     *
+     * Range: [0.0, 1.0]
+     *   0.0  →  new moon  (no moonlight contribution)
+     *   1.0  →  full moon (maximum moonlight contribution)
+     *
+     * Derived from [com.toblad.khwab.aura.sun.MoonPhaseCalculator.phaseFraction]
+     * using  k = (1 − cos(2π·phase)) / 2  — the standard illuminated-fraction
+     * formula.
+     *
+     * Computed once in [com.toblad.khwab.aura.engine.AuraEngine] so all visual
+     * layers (SkyLayer, StarLayer, MoonLayer) receive the same value without each
+     * independently querying MoonPhaseCalculator.
+     *
+     * Default is 0.0 (conservatively no moonlight until computed).
+     */
+    val moonIlluminationFraction: Float = 0.0f
 )

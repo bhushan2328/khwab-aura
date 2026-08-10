@@ -24,6 +24,7 @@ import com.toblad.khwab.aura.sun.MoonPhaseCalculator
 import com.toblad.khwab.aura.sun.SunEngine
 import com.toblad.khwab.aura.world.TimeState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -167,19 +168,6 @@ private fun moonBloomSpread(weather: WeatherState): Float = when (weather) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Lunar phase geometry
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Returns the fraction of the lunar disc that is illuminated.
- *
- * k = (1 − cos(2π × phase)) / 2
- *
- * k = 0.0 at new moon, 1.0 at full moon.
- *
- * @param phase  Raw phase fraction from [MoonPhaseCalculator.phaseFraction()].
- *               0.0 = new moon, 0.5 = full moon, 1.0 = new moon again.
- */
-private fun illuminatedFraction(phase: Double): Double =
-    (1.0 - cos(2.0 * PI * phase)) / 2.0
 
 /**
  * Draws the illuminated lunar disc with a correct continuous terminator.
@@ -406,21 +394,20 @@ fun MoonLayer(theme: AuraTheme) {
     LaunchedEffect(isResumed) {
         if (!isResumed) return@LaunchedEffect
         position = moonPosition(engine, phaseFraction)
-        while (true) {
+        while (isActive) {
             delay(30_000L)
             position = moonPosition(engine, phaseFraction)
         }
     }
 
-    // Derived values
-    val illumination = illuminatedFraction(phaseFraction).toFloat()  // 0..1
+    // Illumination from the ONE authoritative theme value — computed once in AuraEngine.
+    val illumination = theme.moonIlluminationFraction
     val visibility   = moonVisibility(theme.weatherState)
     val bloomSpread  = moonBloomSpread(theme.weatherState)
 
-    val isNight = theme.timePhase == com.toblad.khwab.aura.model.TimePhase.NIGHT ||
-                  theme.timePhase == com.toblad.khwab.aura.model.TimePhase.MIDNIGHT ||
-                  theme.timePhase == com.toblad.khwab.aura.model.TimePhase.EVENING ||
-                  theme.timePhase == com.toblad.khwab.aura.model.TimePhase.PRE_DAWN
+    // isNight uses continuous solarElevNorm — avoids discrete TimePhase comparison.
+    // Sun clearly below horizon (≤ -0.05) is night for atmospheric purposes.
+    val isNight = theme.solarElevNorm <= -0.05f
 
     // Surface colour — cool silver-grey; warmer near full
     // Near full moon the lit fraction is high so the surface appears slightly ivory;

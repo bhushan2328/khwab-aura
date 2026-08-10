@@ -12,11 +12,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import com.toblad.khwab.aura.model.AuraTheme
 import com.toblad.khwab.aura.model.WeatherState
-import com.toblad.khwab.aura.sun.MoonPhaseCalculator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -250,24 +248,13 @@ private fun weatherMult(weather: WeatherState): Float = when (weather) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Fraction of lunar disc that is illuminated.
- *
- * k = (1 − cos(2π·phase)) / 2   →   0 at new moon, 1 at full moon.
- *
- * Identical to the formula used in MoonLayer — extracted here to avoid
- * importing or modifying that file.
- */
-private fun lunarIllumination(phase: Double): Float =
-    ((1.0 - cos(2.0 * PI * phase)) / 2.0).toFloat()
-
-/**
  * Returns a per-star moonlight suppression multiplier given lunar illumination.
  *
  * The function applies stronger suppression to faint stars than to bright ones,
  * reflecting how real moonlight primarily erases dim stars while sparing the
  * brightest points.
  *
- * @param illumination   0..1 from [lunarIllumination]
+ * @param illumination   0..1 lunar illumination fraction (from AuraTheme.moonIlluminationFraction)
  * @param magnitude      0..1 star magnitude (0 = faintest)
  */
 private fun moonSuppressionMult(illumination: Float, magnitude: Float): Float {
@@ -323,11 +310,10 @@ fun StarLayer(theme: AuraTheme) {
     // ── Shared multipliers computed outside the draw loop ─────────────────
     val weatherBase = weatherMult(theme.weatherState)
 
-    // Moon illumination — computed once at composition time.
-    // MoonPhaseCalculator is a pure astronomical calculation; calling it here
-    // is a read-only use of public API.  No architecture is modified.
-    val moonPhase         = remember { MoonPhaseCalculator.phaseFraction() }
-    val moonIllumination  = lunarIllumination(moonPhase)
+    // Moon illumination — from the ONE authoritative theme value.
+    // AuraEngine computes this once per refresh; no independent MoonPhaseCalculator
+    // call is needed here.
+    val moonIllumination = theme.moonIlluminationFraction
 
     val isResumed by rememberIsResumed()
 

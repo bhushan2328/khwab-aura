@@ -10,6 +10,8 @@ import com.toblad.khwab.aura.sun.SolarCalculator
 import com.toblad.khwab.aura.ui.solarElevationNormPublic
 import com.toblad.khwab.aura.world.AuraWorld
 import com.toblad.khwab.aura.world.TimeState
+import kotlin.math.PI
+import kotlin.math.cos
 
 /**
  * Central runtime engine coordinating Aura.
@@ -177,6 +179,13 @@ class AuraEngine(
             sunsetHour  = sunTimes?.sunsetHour
         )
 
+        // ONE authoritative lunar illumination fraction — computed here once so SkyLayer,
+        // StarLayer, and MoonLayer all receive the same value from AuraTheme rather than
+        // each independently calling MoonPhaseCalculator.phaseFraction() inside a remember{}.
+        // Formula: k = (1 − cos(2π·phase)) / 2   →   0 at new moon, 1 at full moon.
+        val rawMoonPhase = MoonPhaseCalculator.phaseFraction()
+        val moonIlluminationFraction = ((1.0 - cos(2.0 * PI * rawMoonPhase)) / 2.0).toFloat()
+
         return themeEngine.createTheme(
             auraState = auraState,
             timePhase = timePhase,
@@ -189,7 +198,8 @@ class AuraEngine(
             sunsetHour = sunTimes?.sunsetHour,
             lightingState = lightingState,
             animationsEnabled = config.animationsEnabled,
-            solarElevNorm = solarElevNorm
+            solarElevNorm = solarElevNorm,
+            moonIlluminationFraction = moonIlluminationFraction
         )
     }
 

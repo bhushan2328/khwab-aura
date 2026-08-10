@@ -6,16 +6,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.toblad.khwab.aura.model.AuraTheme
 import com.toblad.khwab.aura.model.Season
 import com.toblad.khwab.aura.model.WeatherState
-import com.toblad.khwab.aura.sun.MoonPhaseCalculator
-import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.pow
 
 /**
@@ -575,13 +571,10 @@ fun SkyLayer(theme: AuraTheme) {
     // between theme refreshes so atmospheric evolution looks continuous.
     val solarElev = theme.solarElevNorm
 
-    // ── Moonlight contribution ──────────────────────────────────────────────
-    // Lunar illumination from MoonPhaseCalculator — read once at composition,
-    // same approach as StarLayer.  Value is stable for hours.
-    val moonIllumination = remember {
-        val phase = MoonPhaseCalculator.phaseFraction()
-        ((1.0 - cos(2.0 * PI * phase)) / 2.0).toFloat()
-    }
+    // ── Moonlight contribution — from the ONE authoritative theme value ─────
+    // AuraEngine computes moonIlluminationFraction once and stores it in
+    // AuraTheme, eliminating the independent MoonPhaseCalculator call here.
+    val moonIllumination = theme.moonIlluminationFraction
 
     val weather = theme.weatherState
     val season  = theme.profile.season

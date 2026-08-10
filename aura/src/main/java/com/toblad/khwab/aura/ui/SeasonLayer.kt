@@ -16,7 +16,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import com.toblad.khwab.aura.model.AuraTheme
 import com.toblad.khwab.aura.model.Season
-import com.toblad.khwab.aura.model.TimePhase
 import com.toblad.khwab.aura.model.WeatherState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -59,17 +58,25 @@ private fun weatherVisibility(weather: WeatherState): Float = when (weather) {
     WeatherState.STORM  -> 0.20f
 }
 
-/** Time-of-day atmospheric visibility for seasonal particles. */
-private fun timeVisibility(phase: TimePhase): Float = when (phase) {
-    TimePhase.NOON      -> 1.00f
-    TimePhase.MORNING   -> 0.90f
-    TimePhase.AFTERNOON -> 0.95f
-    TimePhase.SUNRISE   -> 0.75f
-    TimePhase.SUNSET    -> 0.80f
-    TimePhase.EVENING   -> 0.55f
-    TimePhase.PRE_DAWN  -> 0.25f
-    TimePhase.NIGHT     -> 0.20f
-    TimePhase.MIDNIGHT  -> 0.15f
+/**
+ * Time-of-day atmospheric visibility for seasonal particles,
+ * derived continuously from normalised solar elevation.
+ *
+ * Full visibility at noon (solarElev ≈ +1), fades toward zero at deep night
+ * (solarElev ≈ -1). The curve concentrates most of the fade in the twilight
+ * band so daytime particles remain visible across the whole day arc.
+ *
+ * Replaces the discrete TimePhase lookup (which caused a step each time the
+ * phase changed) with a continuous mapping from [AuraTheme.solarElevNorm].
+ */
+private fun timeVisibility(solarElev: Float): Float = when {
+    solarElev >= 0.10f  -> 1.00f  // full daytime — particles clearly visible
+    solarElev >= 0.05f  -> 0.90f  // sunrise/sunset zone just above horizon
+    solarElev >= -0.05f -> 0.75f  // horizon crossing
+    solarElev >= -0.15f -> 0.55f  // civil twilight
+    solarElev >= -0.30f -> 0.35f  // evening / pre-dawn
+    solarElev >= -0.55f -> 0.22f  // deep evening
+    else                -> 0.15f  // astronomical night
 }
 
 /**
@@ -571,15 +578,13 @@ private fun DrawScope.drawFrostCrystal(c: FrostCrystal, alpha: Float) {
 @Composable
 fun SeasonLayer(theme: AuraTheme) {
 
-    val season = theme.profile.season
+    val season    = theme.profile.season
+    val solarElev = theme.solarElevNorm
 
-    val isNight = theme.timePhase == TimePhase.NIGHT ||
-            theme.timePhase == TimePhase.MIDNIGHT ||
-            theme.timePhase == TimePhase.EVENING
-
-    val isDaytime = theme.timePhase == TimePhase.MORNING ||
-            theme.timePhase == TimePhase.NOON ||
-            theme.timePhase == TimePhase.AFTERNOON
+    // Use continuous solar elevation for night/daytime classification.
+    // Avoids discrete TimePhase steps; transitions match SkyLayer and CloudLayer.
+    val isNight   = solarElev <= -0.08f    // sun clearly below horizon
+    val isDaytime = solarElev >= 0.10f     // sun clearly above horizon
 
     val isClear = theme.weatherState == WeatherState.CLEAR ||
             theme.weatherState == WeatherState.CLOUDY
@@ -588,7 +593,7 @@ fun SeasonLayer(theme: AuraTheme) {
     val windIntensity    = LocalWindIntensity.current
     val animationsEnabled= theme.animationsEnabled
     val wVis             = weatherVisibility(theme.weatherState)
-    val tVis             = timeVisibility(theme.timePhase)
+    val tVis             = timeVisibility(solarElev)
     val masterVis        = wVis * tVis
 
     when {

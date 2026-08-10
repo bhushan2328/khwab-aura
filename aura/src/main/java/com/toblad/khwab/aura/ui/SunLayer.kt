@@ -20,6 +20,7 @@ import com.toblad.khwab.aura.model.WeatherState
 import com.toblad.khwab.aura.sun.SunEngine
 import com.toblad.khwab.aura.world.TimeState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlin.math.sin
 
 /**
@@ -334,10 +335,12 @@ fun SunLayer(theme: AuraTheme) {
     // Solar position update — 30-second poll to track the sun arc.
     // The 50ms ray-rotation ticker from the old implementation is removed
     // since there are no longer any rotating elements.
+    // isActive guard added so the coroutine exits cleanly when the LaunchedEffect
+    // is cancelled (e.g. lifecycle pause or composable leaving composition).
     LaunchedEffect(isResumed) {
         if (!isResumed) return@LaunchedEffect
         position = engine.calculate(TimeState.now(), sunriseHour, sunsetHour)
-        while (true) {
+        while (isActive) {
             delay(30_000L)
             position = engine.calculate(TimeState.now(), sunriseHour, sunsetHour)
         }
